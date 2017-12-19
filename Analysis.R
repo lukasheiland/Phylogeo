@@ -1,16 +1,25 @@
-##-----------------------------------------------------------------------------
-## Data preparation
-##-----------------------------------------------------------------------------
 
-source("Preparation.R") # execute file with data preparation
+
+
+
+# Use matchPattern or vmatchPattern if you need to find all the occurrences
+#  (eventually with indels) of a given pattern in a reference sequence or set of sequences.
+
+
+##——————————————————————————————————————————————————————————————————————————
+## Data preparation --------------------------------------------------------
+##——————————————————————————————————————————————————————————————————————————
+
+source("Alignment cp.R") # execute file preparing the alignment
 
 load("Data/Alignment_processed.RData", verbose = T) # load resulting file, containing some data frames
 ## EData.RData for data extracted from Excel file
 ## where DC is an alias for URHD.dc
 
-##-----------------------------------------------------------------------------
-## Define distance functions
-##-----------------------------------------------------------------------------
+
+##————————————————————————————————————————————————————————————————————————————
+## Define distance functions -------------------------------------------------
+##————————————————————————————————————————————————————————————————————————————
 
 #### Compute a distance between two haplotype pairs
 ## expects: two named sample vectors with names "SNP", "SSR1" … "SSR3"
@@ -62,9 +71,10 @@ urhd.distances <- distance.matrix(URHD)
 dc.distances <- distance.matrix(DC)
 dc.ger.distances <- distance.matrix(DC.ger)
 
-##-----------------------------------------------------------------------------
-## Data inspection
-##-----------------------------------------------------------------------------
+##————————————————————————————————————————————————————————————————————————————
+## Data inspection -----------------------------------------------------------
+##————————————————————————————————————————————————————————————————————————————
+
 germany <- c("Har", "ByF", "ThF", "Alp", "LHe", "OdW")
 
 table(HD$Region)
@@ -110,9 +120,9 @@ table(zehn57$Region, zehn57$Species)
 table(vierzehn34$Region, vierzehn34$Species)
 
 
-##-----------------------------------------------------------------------------
-## Dendrogram plotting
-##-----------------------------------------------------------------------------
+##————————————————————————————————————————————————————————————————————————————
+## Dendrogram plotting -------------------------------------------------------
+##————————————————————————————————————————————————————————————————————————————
 library("dendextend") # for customizing dendrograms
 
 ## plot dendrograms of hierarchichal, agglomerative cluster analyses from distance matrix
@@ -143,25 +153,12 @@ dend %>%
 rect.dendrogram(dend, k=3, border = 8, lty = 5, lwd = 1, horiz = T)
 
 
-##-----------------------------------------------------------------------------
-## Evaluate haplotypes from alignment
-##-----------------------------------------------------------------------------
+##————————————————————————————————————————————————————————————————————————————
+## Evaluate haplotypes from alignment ----------------------------------------
+##————————————————————————————————————————————————————————————————————————————
 
 library(pegas)
 library(stringr)
-
-#### Subset an alignment
-## expects: an alignment (DNAbin) and subsetting parameters
-## returns: a (vertically and/or horizontally) subset alignment
-subset.alignment <- function(alignment, from = 1, to = ncol(alignment), species = F){
-  is.v.subset <- attr(alignment, "species") == species | (species == F)
-  al <- alignment[is.v.subset, ]
-  al <- as.matrix(al)[, from:to]
-  attr(al, "lab.no") <- attr(alignment, "lab.no")[is.v.subset]
-  attr(al, "species") <- attr(alignment, "species")[is.v.subset]
-  attr(al, "region") <- attr(alignment, "region")[is.v.subset]
-  al
-}
 
 #### df of haplotype descriptors for alignment
 ## expects: alignment (better: alignment confined to interesting region)
@@ -223,9 +220,10 @@ haplotype.distances <- function(haplotypes){
 }
 
 
-##-----------------------------------------------------------------------------
-## Plot haplotype networks
-##-----------------------------------------------------------------------------
+##————————————————————————————————————————————————————————————————————————————
+## Plot haplotype networks ---------------------------------------------------
+##————————————————————————————————————————————————————————————————————————————
+
 
 #### Layout from NMDS!
 
