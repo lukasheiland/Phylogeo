@@ -7,14 +7,19 @@
 
 
 ##——————————————————————————————————————————————————————————————————————————
-## Data preparation --------------------------------------------------------
+## Load data        --------------------------------------------------------
 ##——————————————————————————————————————————————————————————————————————————
 
-source("Alignment cp.R") # execute file preparing the alignment
+source("Alignment cp.R") # execute script preparing the alignment
 
-load("Data/Alignment_processed.RData", verbose = T) # load resulting file, containing some data frames
-## EData.RData for data extracted from Excel file
-## where DC is an alias for URHD.dc
+## loads automatically processed alignment (= Data/Alignment cp processed.fas)
+load("Data/Alignment cp processed.RData", verbose = T) # load resulting file, containing
+# Metadata # data frame
+# cp.alignment.processed
+
+## in case there are manual edits to the automatically processed alignment,
+## get a final alignment file (= Data/Alignment cp final.fas)
+cp.alignment.final <- readDNAStringSet(file = "Data/Alignment cp final.fas") # package:Biostrings returns DNAStringSet
 
 
 ##————————————————————————————————————————————————————————————————————————————
@@ -22,7 +27,7 @@ load("Data/Alignment_processed.RData", verbose = T) # load resulting file, conta
 ##————————————————————————————————————————————————————————————————————————————
 
 #### Compute a distance between two haplotype pairs
-## expects: two named sample vectors with names "SNP", "SSR1" … "SSR3"
+## expects: two named sample vectors (gt1, gt2) each with names "SNP", "SSR1" … "SSR3"
 ## returns: distance: count of mutational steps, where A->G counts as 1, and differences in respective SSR repetitions count as mutational steps
 distance <- function(gt1, gt2){
   d <- as.numeric(gt1["SNP"] != gt2["SNP"]) # +1 for different SNPs

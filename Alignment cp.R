@@ -124,21 +124,14 @@ names(cp.seq.alignment) <- new.names
 
 # writePairwiseAlignments((pairwiseAlignment(cp.alignment.dip.com[1], cp.seq.alignment[4])))
 
-new.alignment <- c(cp.alignment.dip.com, cp.seq.alignment)
+cp.alignment.processed <- c(cp.alignment.dip.com, cp.seq.alignment)
 # new.alignment <- msa(new.alignment)
 # new.alignment <- DNAStringSet(new.alignment)
 
 ## visual DNAbin alignment inspection:
-# alview(cp.alignment)
-# image(cp.alignment)
+# alview(alignment.cp)
+# image(alignment.cp)
 
-
-##——————————————————————————————————————————————————————————————————————————
-## Write data                                                  -------------
-##——————————————————————————————————————————————————————————————————————————
-
-writeXStringSet(new.alignment, "Data/Alignment cp processed.fas")
-save(new.alignment, file = "Data/Alignment cp processed.Rdata")
 
 ##——————————————————————————————————————————————————————————————————————————
 ## Read metadata                                               -------------
@@ -150,3 +143,10 @@ Metadata.raw <- read.csv("Data/Master file.csv",
                          check.names = F, # ensures that empty names are not replaced by constructed ones
                          colClasses = c(Lon = "numeric", Lat = "numeric"))
 Metadata <- Metadata.raw[, names(Metadata.raw) != ""] # use only rows with set names
+
+##——————————————————————————————————————————————————————————————————————————
+## Write data                                                  -------------
+##——————————————————————————————————————————————————————————————————————————
+
+writeXStringSet(cp.alignment.processed, "Data/Alignment cp processed.fas")
+save(cp.alignment.processed, Metadata, file = "Data/Alignment cp processed.Rdata")
