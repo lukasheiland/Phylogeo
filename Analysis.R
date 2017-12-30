@@ -5,6 +5,15 @@
 # Use matchPattern or vmatchPattern if you need to find all the occurrences
 #  (eventually with indels) of a given pattern in a reference sequence or set of sequences.
 
+# haploGen # Simulation of genealogies of haplotypes
+
+##——————————————————————————————————————————————————————————————————————————
+## Load packages                -------------------------------------------
+##——————————————————————————————————————————————————————————————————————————
+
+library(pegas) #
+
+
 
 ##——————————————————————————————————————————————————————————————————————————
 ## Load data        --------------------------------------------------------
@@ -19,7 +28,80 @@ load("Data/Alignment cp processed.RData", verbose = T) # load resulting file, co
 
 ## in case there are manual edits to the automatically processed alignment,
 ## get a final alignment file (= Data/Alignment cp final.fas)
-cp.alignment.final <- readDNAStringSet(file = "Data/Alignment cp final.fas") # package:Biostrings returns DNAStringSet
+cp.alignment.final <- readDNAStringSet(file = "Data/Alignment cp processed final.fas") # package:Biostrings returns DNAStringSet
+
+
+##————————————————————————————————————————————————————————————————————————————
+## Get metadata from haplotypes from alignment ----------------------------------------
+##————————————————————————————————————————————————————————————————————————————
+
+#### "meta data frame" from a haplotype object
+#### extracting Region etc. from associated alignment
+get.meta.df <- function(haplotypes, snp.pos = 1){
+  al <- get(attr(haplotypes, "from")) # get alignment the haplotypes were derived from
+  
+  ## extract first indices of each haplotype in alignment
+  hi <- sapply(attr(haplotypes, "index"), "[", 1)
+  al.h <- al[hi, ] # alignment comprising only unique haplotypes
+  species.h <- attr(al, "species")[hi] # this is the way to get alignment attributes in the metadata
+  MD <- cbind(hap.factors(al.h), Species = species.h)
+  rownames(MD) <- attr(haplotypes, "dimnames")[[1]] # this is problematic in case there are different haplotypes with identical haplotype descriptor, e.g. other SNPs
+  MD
+}
+
+
+
+##————————————————————————————————————————————————————————————————————————————
+## Evaluate haplotypes from alignment ----------------------------------------
+##————————————————————————————————————————————————————————————————————————————
+
+#### df of haplotype descriptors for alignment
+## expects: alignment (better: alignment confined to interesting region)
+## returns: df
+hap.factors <- function(al, snp.pos = 1){
+  snp <- as.character(al[,snp.pos])
+  snp <- toupper(snp)
+  
+  al.strings <- sapply(al, FUN = function(x) paste(as.character(x), collapse=""))
+  ssr1 <- str_count(str_extract(al.strings, "(?<=tttc)(aaat){1,}(?=\\-)"), "aaat")
+  ssr2 <- str_count(str_extract(al.strings, "(?<=\\-)(at){1,}(?=\\-)"), "at")
+  ssr3 <- str_count(str_extract(al.strings, "(?<=\\-)(attt){1,}(?=\\-)"), "attt")
+  
+  haplotype.string <- paste(snp, ssr1, ssr2, ssr3, sep = "_")
+  data.frame(SNP = snp,
+             SSR1 = ssr1,
+             SSR2 = ssr2,
+             SSR3 = ssr3,
+             Haplotype = haplotype.string)
+}
+
+
+####
+##
+##
+region.matrix <- function(haplotypes){
+  al <- get(attr(haplotypes, "from")) # get alignment the haplotypes were derived from
+  hr.table <- table(hap.factors(al)$Haplotype, attr(al, "region"))
+  hr.table[meta.df(haplotypes)$Haplotype,]
+}
+
+####
+##
+##
+species.matrix <- function(haplotypes){
+  al <- get(attr(haplotypes, "from")) # get alignment the haplotypes were derived from
+  hs.table <- table(hap.factors(al)$Haplotype, attr(al, "species"))
+  hs.table[meta.df(haplotypes)$Haplotype,]
+}
+
+#### Returns a distance matrix for a haplotype {pegas} object
+## expects: haplotype object
+## returns: lower triangle distance matrix
+haplotype.distances <- function(haplotypes){
+  
+}
+
+
 
 
 ##————————————————————————————————————————————————————————————————————————————
@@ -80,9 +162,6 @@ dc.ger.distances <- distance.matrix(DC.ger)
 ## Data inspection -----------------------------------------------------------
 ##————————————————————————————————————————————————————————————————————————————
 
-germany <- c("Har", "ByF", "ThF", "Alp", "LHe", "OdW")
-
-table(HD$Region)
 
 ## Total
 nrow(HD) # total no. of records
@@ -157,72 +236,6 @@ dend %>%
 
 rect.dendrogram(dend, k=3, border = 8, lty = 5, lwd = 1, horiz = T)
 
-
-##————————————————————————————————————————————————————————————————————————————
-## Evaluate haplotypes from alignment ----------------------------------------
-##————————————————————————————————————————————————————————————————————————————
-
-library(pegas)
-library(stringr)
-
-#### df of haplotype descriptors for alignment
-## expects: alignment (better: alignment confined to interesting region)
-## returns: df
-hap.factors <- function(al, snp.pos = 1){
-  snp <- as.character(al[,snp.pos])
-  snp <- toupper(snp)
-  
-  al.strings <- sapply(al, FUN = function(x) paste(as.character(x), collapse=""))
-  ssr1 <- str_count(str_extract(al.strings, "(?<=tttc)(aaat){1,}(?=\\-)"), "aaat")
-  ssr2 <- str_count(str_extract(al.strings, "(?<=\\-)(at){1,}(?=\\-)"), "at")
-  ssr3 <- str_count(str_extract(al.strings, "(?<=\\-)(attt){1,}(?=\\-)"), "attt")
-  
-  haplotype.string <- paste(snp, ssr1, ssr2, ssr3, sep = "_")
-  data.frame(SNP = snp,
-             SSR1 = ssr1,
-             SSR2 = ssr2,
-             SSR3 = ssr3,
-             Haplotype = haplotype.string)
-}
-
-#### "meta data frame" from a haplotype object
-#### extracting Region etc. from associated alignment
-meta.df <- function(haplotypes, snp.pos = 1){
-  al <- get(attr(haplotypes, "from")) # get alignment the haplotypes were derived from
-
-  ## extract first indices of each haplotype in alignment
-  hi <- sapply(attr(haplotypes, "index"), "[", 1)
-  al.h <- al[hi, ] # alignment comprising only unique haplotypes
-  species.h <- attr(al, "species")[hi] # this is the way to get alignment attributes in the metadata
-  MD <- cbind(hap.factors(al.h), Species = species.h)
-  rownames(MD) <- attr(haplotypes, "dimnames")[[1]] # this is problematic in case there are different haplotypes with identical haplotype descriptor, e.g. other SNPs
-  MD
-}
-
-####
-##
-##
-region.matrix <- function(haplotypes){
-  al <- get(attr(haplotypes, "from")) # get alignment the haplotypes were derived from
-  hr.table <- table(hap.factors(al)$Haplotype, attr(al, "region"))
-  hr.table[meta.df(haplotypes)$Haplotype,]
-}
-
-####
-##
-##
-species.matrix <- function(haplotypes){
-  al <- get(attr(haplotypes, "from")) # get alignment the haplotypes were derived from
-  hs.table <- table(hap.factors(al)$Haplotype, attr(al, "species"))
-  hs.table[meta.df(haplotypes)$Haplotype,]
-}
-
-#### Returns a distance matrix for a haplotype {pegas} object
-## expects: haplotype object
-## returns: lower triangle distance matrix
-haplotype.distances <- function(haplotypes){
-
-}
 
 
 ##————————————————————————————————————————————————————————————————————————————

@@ -76,7 +76,7 @@ attr(cp.alignment.dip.com, "lab.id") <- dip.com.ids <- sapply(split.labels.dip.c
 
 
 ##——————————————————————————————————————————————————————————————————————————
-## Add sequences from ab1 files to alignment                  --------------
+## Add sequences from abif and scf files to alignment         --------------
 ##——————————————————————————————————————————————————————————————————————————
 
 ## Cascade of logicals to finally obtain two vectors of all new files not yet in the alignment
@@ -134,10 +134,10 @@ cp.alignment.processed <- c(cp.alignment.dip.com, cp.seq.alignment)
 
 
 ##——————————————————————————————————————————————————————————————————————————
-## Read metadata                                               -------------
+## Get metadata from master file                               -------------
 ##——————————————————————————————————————————————————————————————————————————
 
-## Read the csv Masterfile
+## Read the csv masterfile
 Metadata.raw <- read.csv("Data/Master file.csv",
                          skip = 5,   # skips 5 rows in the .csv file and interprete the 6th as header 
                          check.names = F, # ensures that empty names are not replaced by constructed ones
