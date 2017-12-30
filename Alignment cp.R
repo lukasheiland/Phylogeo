@@ -141,8 +141,54 @@ cp.alignment.processed <- c(cp.alignment.dip.com, cp.seq.alignment)
 Metadata.raw <- read.csv("Data/Master file.csv",
                          skip = 5,   # skips 5 rows in the .csv file and interprete the 6th as header 
                          check.names = F, # ensures that empty names are not replaced by constructed ones
-                         colClasses = c(Lon = "numeric", Lat = "numeric"))
-Metadata <- Metadata.raw[, names(Metadata.raw) != ""] # use only rows with set names
+                         colClasses = c(Lon = "numeric", Lat = "numeric"),
+                         na.strings = "")
+Metadata.all <- Metadata.raw[!is.na(Metadata.raw$Lab.ID), names(Metadata.raw) != ""] # use only cols with set names, and only not empty rows
+
+## check if all files are listed in the masterfile
+all(cp.file.ids %in% as.character(Metadata.all$Lab.ID))
+
+## check for replications
+## repeated extractions are annotaded as the original number in the "Repetition" field
+# data.frame(Metadata.all$Repetition, Metadata.all$Lab.ID)
+
+new.split.labels <- str_split(names(cp.alignment.processed), "_")
+processed.ids <- sapply(new.split.labels, function(x) x[3])
+
+is.repeating <- !is.na(Metadata.all$Repetition)
+repeating.ids <- Metadata.all$Lab.ID[is.repeating]
+
+repeated.ids <- Metadata.all$Repetition[is.repeating]
+is.repeated <- Metadata.all$Lab.ID %in% repeated.ids
+
+# make sure there is no file which is both a repeating and a repeated extraction
+if (any((processed.ids %in% repeated.ids) & (processed.ids %in% repeating.ids))) { warning("Something horrible happened! There is at least one specimen whose both repeating and repeated extraction is present as a file. ") }
+
+# processed.ids[(processed.ids %in% repeating.ids)]
+
+## check for duplicates
+any(duplicated(processed.ids))
+any(duplicated(Metadata$Lab.ID))
+
+## check for set differences
+setdiff(processed.ids, as.character(Metadata$Lab.ID)) # "329" "471"
+
+
+
+## subsetting Metadata
+is.present.in.alignment <- as.character(Metadata.all$Lab.ID) %in% processed.ids # sum(is.present.in.alignment): 252
+Metadata <- subset(Metadata.all, is.present.in.alignment & !is.repeating) # sum(is.present.in.alignment & !is.repeating): 252 phew
+Metadata <- Metadata[order(Metadata$Lab.ID),]
+
+
+## subsetting Alignment
+## check for repeating in alignment IDs
+any(processed.ids %in% repeating.ids) # "329" "471"
+## consider: There are a few repeating ids in the alignment
+cp.alignment.processed <- cp.alignment.processed[!(processed.ids %in% repeating.ids)]
+processed.ids <- processed.ids[!(processed.ids %in% repeating.ids)] # drop repeating IDs for now
+cp.alignment.processed <- cp.alignment.processed[order(processed.ids)]
+
 
 ##——————————————————————————————————————————————————————————————————————————
 ## Write data                                                  -------------

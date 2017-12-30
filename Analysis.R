@@ -1,78 +1,75 @@
 
 
-
-
-# Use matchPattern or vmatchPattern if you need to find all the occurrences
-#  (eventually with indels) of a given pattern in a reference sequence or set of sequences.
-
 # haploGen # Simulation of genealogies of haplotypes
 
 ##——————————————————————————————————————————————————————————————————————————
-## Load packages                -------------------------------------------
+## Load packages                                             --------------
 ##——————————————————————————————————————————————————————————————————————————
 
-library(pegas) #
+library(pegas) # Population and Evolutionary Genetics Analysis System. E.g. haplonet
 
-
+library(stringr) # string manipulation
 
 ##——————————————————————————————————————————————————————————————————————————
-## Load data        --------------------------------------------------------
+## Load data                                                 --------------
 ##——————————————————————————————————————————————————————————————————————————
 
-source("Alignment cp.R") # execute script preparing the alignment
+## Won't be necessary everytime:
+# source("Alignment cp.R") # execute script preparing the alignment
 
 ## loads automatically processed alignment (= Data/Alignment cp processed.fas)
 load("Data/Alignment cp processed.RData", verbose = T) # load resulting file, containing
 # Metadata # data frame
 # cp.alignment.processed
 
+
 ## in case there are manual edits to the automatically processed alignment,
 ## get a final alignment file (= Data/Alignment cp final.fas)
 cp.alignment.final <- readDNAStringSet(file = "Data/Alignment cp processed final.fas") # package:Biostrings returns DNAStringSet
+## make sure that it is sorted by id
+final.ids <- sapply(str_split(names(cp.alignment.final), "_"), function(x) x[3])
+caf <- cp.alignment.final[order(final.ids)]
+ids <- final.ids[order(final.ids)]
 
+## check if ids and Metadata lab.ids are identical
+identical(ids, as.character(Metadata$Lab.ID))
 
 ##————————————————————————————————————————————————————————————————————————————
-## Get metadata from haplotypes from alignment ----------------------------------------
+## Confine alignment to relevant region  -------------------------------------
 ##————————————————————————————————————————————————————————————————————————————
 
-#### "meta data frame" from a haplotype object
-#### extracting Region etc. from associated alignment
-get.meta.df <- function(haplotypes, snp.pos = 1){
-  al <- get(attr(haplotypes, "from")) # get alignment the haplotypes were derived from
-  
-  ## extract first indices of each haplotype in alignment
-  hi <- sapply(attr(haplotypes, "index"), "[", 1)
-  al.h <- al[hi, ] # alignment comprising only unique haplotypes
-  species.h <- attr(al, "species")[hi] # this is the way to get alignment attributes in the metadata
-  MD <- cbind(hap.factors(al.h), Species = species.h)
-  rownames(MD) <- attr(haplotypes, "dimnames")[[1]] # this is problematic in case there are different haplotypes with identical haplotype descriptor, e.g. other SNPs
-  MD
-}
-
-
+# Really?
 
 ##————————————————————————————————————————————————————————————————————————————
 ## Evaluate haplotypes from alignment ----------------------------------------
 ##————————————————————————————————————————————————————————————————————————————
 
-#### df of haplotype descriptors for alignment
-## expects: alignment (better: alignment confined to interesting region)
-## returns: df
-hap.factors <- function(al, snp.pos = 1){
-  snp <- as.character(al[,snp.pos])
-  snp <- toupper(snp)
+# Use matchPattern or vmatchPattern if you need to find all the occurrences
+#  (eventually with indels) of a given pattern in a reference sequence or set of sequences.
+
+
+#### Data frame of haplotype descriptors for alignment
+## expects: DNAStringSet alignment (better: alignment confined to interesting region)
+## returns: Data frame
+
+parse_haplotypes <- function(alignment,
+                              snp.regexp = "(?<=GAAAGAAAAA)[AGCT]{1,}(?=AAAA(\\-){1,}CCC)"){
   
-  al.strings <- sapply(al, FUN = function(x) paste(as.character(x), collapse=""))
-  ssr1 <- str_count(str_extract(al.strings, "(?<=tttc)(aaat){1,}(?=\\-)"), "aaat")
-  ssr2 <- str_count(str_extract(al.strings, "(?<=\\-)(at){1,}(?=\\-)"), "at")
-  ssr3 <- str_count(str_extract(al.strings, "(?<=\\-)(attt){1,}(?=\\-)"), "attt")
+  al.strings <- sapply(alignment, FUN = as.character)
+  
+  snp <- str_extract(al.strings, snp.regexp)
+
+  ssr1 <- str_count(str_extract(al.strings, "(?<=TTTC)(AAAT){1,}(?=\\-)"), "AAAT")
+  ssr2 <- str_count(str_extract(al.strings, "(?<=\\-)(AT){1,}(?=\\-)"), "AT")
+  ssr3 <- str_count(str_extract(al.strings, "(?<=\\-)(ATTT){1,}(?=\\-)"), "ATTT")
   
   haplotype.string <- paste(snp, ssr1, ssr2, ssr3, sep = "_")
-  data.frame(SNP = snp,
-             SSR1 = ssr1,
-             SSR2 = ssr2,
-             SSR3 = ssr3,
-             Haplotype = haplotype.string)
+  data.frame(SNP = snp, 
+             SSR1 = ssr1, 
+             SSR2 = ssr2, 
+             SSR3 = ssr3, 
+             Haplotype = haplotype.string,
+             File.Names = names(al.strings))
 }
 
 
@@ -100,6 +97,22 @@ species.matrix <- function(haplotypes){
 haplotype.distances <- function(haplotypes){
   
 }
+
+
+
+##————————————————————————————————————————————————————————————————————————————
+## Analysis                                       ----------------------------
+##————————————————————————————————————————————————————————————————————————————
+
+## caf alias cp.alignment.final
+Haplotypes <- parse_haplotypes(caf)
+Metadata <- cbind(Metadata, Haplotypes)
+
+plot(Metadata$Haplotype ~ Metadata$Pop)
+
+
+
+
 
 
 
@@ -306,3 +319,32 @@ plot(hnet.all,
      pie = sm,
      bg = sp.colors,
      scale.ratio = 1.6)
+
+
+
+
+
+
+
+
+
+
+
+
+##————————————————————————————————————————————————————————————————————————————
+## Get metadata from haplotypes from align                      --------------
+##————————————————————————————————————————————————————————————————————————————
+
+#### "meta data frame" from a haplotype object
+#### extracting Region etc. from associated alignment
+get.meta.df <- function(haplotypes, snp.pos = 1){
+  al <- get(attr(haplotypes, "from")) # get alignment the haplotypes were derived from
+  
+  ## extract first indices of each haplotype in alignment
+  hi <- sapply(attr(haplotypes, "index"), "[", 1)
+  al.h <- al[hi, ] # alignment comprising only unique haplotypes
+  species.h <- attr(al, "species")[hi] # this is the way to get alignment attributes in the metadata
+  MD <- cbind(hap.factors(al.h), Species = species.h)
+  rownames(MD) <- attr(haplotypes, "dimnames")[[1]] # this is problematic in case there are different haplotypes with identical haplotype descriptor, e.g. other SNPs
+  MD
+}
