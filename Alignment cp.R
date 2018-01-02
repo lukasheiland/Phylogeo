@@ -179,7 +179,7 @@ setdiff(processed.ids, as.character(Metadata$Lab.ID)) # "329" "471"
 is.present.in.alignment <- as.character(Metadata.all$Lab.ID) %in% processed.ids # sum(is.present.in.alignment): 252
 Metadata <- subset(Metadata.all, is.present.in.alignment & !is.repeating) # sum(is.present.in.alignment & !is.repeating): 252 phew
 Metadata <- Metadata[order(Metadata$Lab.ID),]
-
+Metadata <- droplevels(Metadata)
 
 ## subsetting Alignment
 ## check for repeating in alignment IDs
