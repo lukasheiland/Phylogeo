@@ -209,6 +209,9 @@ euclid_ht_distance_matrix <- function(df){
 Haplotypes <- parse_haplotypes(caf)
 MD <- cbind(MD, Haplotypes)
 
+## Write a haplotype table out to csv file
+write.csv(cbind(Lab.No = MD$Lab.ID, Haplotypes), "Data/Haplotypes.csv")
+
 #### adjust the order of levels for plotting
 MD$Pop.longitudinal <- factor(MD$Pop.longitudinal,
                                     levels = levels(MD$Pop.longitudinal)[c(1, 2, 4, 5, 6, 3)])

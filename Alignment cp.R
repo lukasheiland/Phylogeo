@@ -171,7 +171,7 @@ any(duplicated(processed.ids))
 any(duplicated(Metadata$Lab.ID))
 
 ## check for set differences
-setdiff(processed.ids, as.character(Metadata$Lab.ID)) # "329" "471"
+setdiff(processed.ids, as.character(Metadata$Lab.ID))
 
 
 
@@ -183,7 +183,7 @@ Metadata <- droplevels(Metadata)
 
 ## subsetting Alignment
 ## check for repeating in alignment IDs
-any(processed.ids %in% repeating.ids) # "329" "471"
+any(processed.ids %in% repeating.ids)
 ## consider: There are a few repeating ids in the alignment
 cp.alignment.processed <- cp.alignment.processed[!(processed.ids %in% repeating.ids)]
 processed.ids <- processed.ids[!(processed.ids %in% repeating.ids)] # drop repeating IDs for now
