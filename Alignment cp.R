@@ -148,45 +148,51 @@ Metadata.all <- Metadata.raw[!is.na(Metadata.raw$Lab.ID), names(Metadata.raw) !=
 ## check if all files are listed in the masterfile
 all(cp.file.ids %in% as.character(Metadata.all$Lab.ID))
 
-## check for replications
-## repeated extractions are annotaded as the original number in the "Repetition" field
-# data.frame(Metadata.all$Repetition, Metadata.all$Lab.ID)
 
+## get a character vector of all lab.ids in the processed alignment
 new.split.labels <- str_split(names(cp.alignment.processed), "_")
 processed.ids <- sapply(new.split.labels, function(x) x[3])
 
+## check for replications
+## repeated extractions are annotaded as the original number in the "Repetition" field
+# data.frame(Metadata.all$Repetition, Metadata.all$Lab.ID)
 is.repeating <- !is.na(Metadata.all$Repetition)
 repeating.ids <- Metadata.all$Lab.ID[is.repeating]
 
 repeated.ids <- Metadata.all$Repetition[is.repeating]
 is.repeated <- Metadata.all$Lab.ID %in% repeated.ids
 
-# make sure there is no file which is both a repeating and a repeated extraction
+## make sure there is no file which is both a repeating and a repeated extraction
 if (any((processed.ids %in% repeated.ids) & (processed.ids %in% repeating.ids))) { warning("Something horrible happened! There is at least one specimen whose both repeating and repeated extraction is present as a file. ") }
 
 # processed.ids[(processed.ids %in% repeating.ids)]
+
+## check for DIPcoms in alignment which are not molecular DIPcoms according to Masterile
+is.mol.dip.com <- as.character(Metadata.all$Species.mol) == "DIPcom" | is.na(Metadata.all$Species.mol)
+are.not.mol.dip.com.ids <- Metadata.all$Lab.ID[!is.mol.dip.com]
+
+##### subsetting Metadata
+is.present.in.alignment <- as.character(Metadata.all$Lab.ID) %in% processed.ids # sum(is.present.in.alignment): 252
+Metadata <- subset(Metadata.all, is.present.in.alignment & !is.repeating & is.mol.dip.com) # sum(is.present.in.alignment & !is.repeating): 252 phew
+Metadata <- Metadata[order(Metadata$Lab.ID),]
+Metadata <- droplevels(Metadata)
 
 ## check for duplicates
 any(duplicated(processed.ids))
 any(duplicated(Metadata$Lab.ID))
 
+## check for repeating IDs in alignment
+any(processed.ids %in% repeating.ids)
+
 ## check for set differences
 setdiff(processed.ids, as.character(Metadata$Lab.ID))
 
-
-
-## subsetting Metadata
-is.present.in.alignment <- as.character(Metadata.all$Lab.ID) %in% processed.ids # sum(is.present.in.alignment): 252
-Metadata <- subset(Metadata.all, is.present.in.alignment & !is.repeating) # sum(is.present.in.alignment & !is.repeating): 252 phew
-Metadata <- Metadata[order(Metadata$Lab.ID),]
-Metadata <- droplevels(Metadata)
-
 ## subsetting Alignment
-## check for repeating in alignment IDs
-any(processed.ids %in% repeating.ids)
+## exclude repetitions and not molecular DIPcoms
 ## consider: There are a few repeating ids in the alignment
-cp.alignment.processed <- cp.alignment.processed[!(processed.ids %in% repeating.ids)]
-processed.ids <- processed.ids[!(processed.ids %in% repeating.ids)] # drop repeating IDs for now
+include <- !(processed.ids %in% repeating.ids) & !(processed.ids %in% are.not.mol.dip.com.ids)
+cp.alignment.processed <- cp.alignment.processed[include]
+processed.ids <- processed.ids[include] # drop repeating IDs for now
 cp.alignment.processed <- cp.alignment.processed[order(processed.ids)]
 
 
