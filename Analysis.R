@@ -7,6 +7,9 @@ library(stringr) # string manipulation
 
 ## Geo
 
+## Genetics
+library(Biostrings) # Bio sequence manipulation, here for reading fasta files
+
 ## Haplotype Networks
 library(stringi) # for generating random strings from set of letters (hack to fool pegas::haplotype)
 library(pegas) # Population and Evolutionary Genetics Analysis System. E.g. haploNet()
@@ -232,11 +235,11 @@ write.csv(cbind(Lab.No = MD$Lab.ID, Haplotypes), "Data/Haplotypes.csv")
 MD$Pop.longitudinal <- factor(MD$Pop.longitudinal,
                                     levels = c("Europe.central", "Europe.east", "Siberia.west", "Kamtchatka", "Alaska"))
 MD$Pop.landscape <- factor(MD$Pop.landscape,
-                           levels = c("Har", "ThF", "ByF", "Slovenia", "Lithuania", "Russia.european", "Ural", "Siberia.west", "Kamtchatka", "Alaska"))
+                           levels = c("Har", "ThF", "ByF", "Slovenia", "Lithuania", "St.Petersburg", "Moscow", "Ural", "Siberia.west.n", "Siberia.west.s", "Kamtchatka", "Alaska"))
 MD$Pop.state <- factor(MD$Pop.state,
                        levels = c("Germany", "Slovenia", "Lithuania", "Russia.european", "Ural", "Siberia.west", "Kamtchatka", "Alaska"))
-
-MD$Haplotype <- reorder(MD$Haplotype, MD$SSR1)
+MD$Pop.grouped <- factor(MD$Pop.grouped,
+                           levels = c("Europe.central: Har", "Europe.central: ThF", "Europe.central: ByF", "Europe.central: Slovenia", "Europe.east: Lithuania", "Europe.east: St.Petersburg", "Europe.east: Moscow", "Siberia.west: Ural", "Siberia.west: Siberia.west.n", "Siberia.west: Siberia.west.s", "Kamtchatka: Kamtchatka", "Alaska: Alaska"))MD$Haplotype <- reorder(MD$Haplotype, MD$SSR1)
 
 
 #### Make haplotype inventory spine plots by region
@@ -275,13 +278,6 @@ lapply(labels.longitudinal, write, "longitudinal.txt", append = TRUE, ncolumns =
 
 table(MD$Haplotype, MD$Pop.longitudinal)
 
-#### Cluster the specimens
-# specimen.distances <- ht_distance_matrix(MD) # note: there will be NAs in the upper triangle
-# specimen.dendrogram <- as.dist(specimen.distances) %>%
-#   hclust(method = "ward.D2")
-# plot(specimen.dendrogram, label = paste(MD$Pop.landscape, MD$Haplotype, sep = " "))
-
-
 #### build data frame of unique species-haplotype combinations
 ## alternatively, when dealing with multiple species:
 ## use permutations of Haplotype and Species to return the length of the Lab.ID vector, i. e. the count of the samples
@@ -309,11 +305,19 @@ HDL <- cbind(as.matrix(HT.landscape),
              Total.Count = total.count,
              Short.Haplotype = short.haplotype)
 
+#### Cluster the specimens
+# specimen.distances <- ht_distance_matrix(MD) # note: there will be NAs in the upper triangle
+# specimen.dendrogram <- as.dist(specimen.distances) %>%
+#   hclust(method = "ward.D2")
+# plot(specimen.dendrogram, label = paste(MD$Pop.landscape, MD$Haplotype, sep = " "))
+
+
+
 ##————————————————————————————————————————————————————————————————————————————
-## Dendrogram plotting -------------------------------------------------------
+## Dendrograms plotting      -------------------------------------------------
 ##————————————————————————————————————————————————————————————————————————————
 library("dendextend") # for customizing dendrograms
-library("circlize")
+library("circlize") # for circlizing dendrograms
 
 #### I. Haplotypes
 ## Cluster the haplotypes
@@ -343,7 +347,30 @@ dend %>%
 # rect.dendrogram(dend, k=3, border = 8, lty = 5, lwd = 1, horiz = T)
 
 #### II. Populations
+# library(adegenet) # multivariate analysis of genetic markers, 
+library(hierfstat) # Nei's D_A 1983 in genet.dist()
 
+# Nei's D_A 1983, (eqn 7) in Takezaki and Nei (1996)
+Neis.Data <- MD[!MD$Is.Outgroup, c(Pop = "Pop.grouped",
+                    "SSR1",
+                    "SSR2",
+                    "SSR3")] # genet.dist expects A data frame containing population of origin as the first column and multi-locus genotypes in following columns
+Neis.Data <- droplevels(Neis.Data) # important!
+## following step is not necessary, as genet.dist does the factor conversion
+Neis.Data[, c("SSR1", "SSR2", "SSR3")] <- lapply(Neis.Data[, c("SSR1", "SSR2", "SSR3")], as.factor)
+neis.Da <- genet.dist(Neis.Data, method = "Da", diploid = F)
+
+## Build Neighbour joining dendrogram
+## ape::nj
+## Saitou, N. and Nei, M. (1987) The neighbor-joining method: a new method for reconstructing phylogenetic trees. Molecular Biology and Evolution, 4, 406–425.
+## bionj: This function performs the BIONJ algorithm of Gascuel (1997).
+
+neis.Da <- as.matrix(neis.Da)
+dimnames(neis.Da) <- list(levels(Neis.Data$Pop), levels(Neis.Data$Pop))
+nj.pop.cluster <- bionj(neis.Da) # nj() for classic Saitou amd Nei (1987)
+# tiplabels(pop.clust) <- levels(Neis.Data$Pop)
+# pop.clust <- hclust(neis.Da, method = "ward.D2")
+plot.phylo(nj.pop.cluster, type = "radial") # type = "unrooted"
 
 ##————————————————————————————————————————————————————————————————————————————
 ## Map drawing                                           ---------------------
@@ -385,7 +412,7 @@ map
 ## as a hacky workaround generate a random alignment with as many different sequences as haplotypes
 no.haplotypes <- length(unique(MD$Haplotype))
 set.seed(1)
-random.strings <- as.list(stri_rand_strings(no.haplotypes, 200, pattern = "[ACTG]"))
+random.strings <- as.list(stri_rand_strings(no.haplotypes, 100, pattern = "[ACTG]"))
 random.strings <- as.DNAbin.alignment(ape::as.alignment(random.strings))
 names(random.strings) <- HD$Haplotype
 ht.d <- ht_distance_matrix(HD)
@@ -429,5 +456,5 @@ plot(ht.net,
      size = HDL$Total.Count^(1/2)*0.6, # circle sizes
      show.mutation = 1,
      pie = landscape.pop.matrix,
-     legend = c(4, 31), # coordinates where to draw legend
+     legend = c(2, 20), # coordinates where to draw legend
      bg = c.landscape)
