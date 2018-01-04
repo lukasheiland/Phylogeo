@@ -5,14 +5,18 @@
 ## Basic stuff
 library(stringr) # string manipulation
 
-## Genetics
-library(pegas) # Population and Evolutionary Genetics Analysis System. E.g. haplonet
-
 ## Geo
+
+## Haplotype Networks
+library(stringi) # for generating random strings from set of letters (hack to fool pegas::haplotype)
+library(pegas) # Population and Evolutionary Genetics Analysis System. E.g. haploNet()
 
 ##——————————————————————————————————————————————————————————————————————————
 ## Load data                                                 --------------
 ##——————————————————————————————————————————————————————————————————————————
+
+## save default graphic parameters for later reset with par(.pardefault)
+.pardefault <- par(no.readonly = T)
 
 ## Won't be necessary everytime:
 # source("Alignment cp.R") # execute script preparing the alignment
@@ -283,13 +287,27 @@ table(MD$Haplotype, MD$Pop.longitudinal)
 ## use permutations of Haplotype and Species to return the length of the Lab.ID vector, i. e. the count of the samples
 # uhd <- aggregate(Lab.ID ~ Haplotype + Species.mol, data = MD, FUN = length) 
 
+## … for broader (longitudinal) pops: HD
 Haplotype.Table <- table(MD$Haplotype, MD$Pop.longitudinal)
-Haplotype.Data <- MD[match(rownames(Haplotype.Table), MD$Haplotype), c("SNP", "SSR1", "SSR2", "SSR3", "Haplotype")]
+Haplotype.Data <- MD[match(rownames(Haplotype.Table), MD$Haplotype), c("SNP", "SSR1", "SSR2", "SSR3")]
+short.haplotype <- with(Haplotype.Data, paste(SSR1, SSR2, SSR3, sep = "–"))
 attr(Haplotype.Table, "class") <- "matrix"
-Total.Count <- rowSums(Haplotype.Table)
-Haplotype.Data <- cbind(as.matrix(Haplotype.Table), Haplotype.Data, Total.Count)
+total.count <- rowSums(Haplotype.Table)
+Haplotype.Data <- cbind(as.matrix(Haplotype.Table),
+                        Haplotype.Data,
+                        Total.Count = total.count,
+                        Short.Haplotype = short.haplotype)
 HD <- Haplotype.Data
 
+## … for narrower ("landscape level") pops: HDL
+HT.landscape <- table(MD$Haplotype, MD$Pop.landscape)
+HDL <- MD[match(rownames(HT.landscape), MD$Haplotype), c("SNP", "SSR1", "SSR2", "SSR3", "Haplotype")]
+attr(HT.landscape, "class") <- "matrix"
+# Total.Count <- rowSums(HT.landscape)
+HDL <- cbind(as.matrix(HT.landscape),
+             HDL,
+             Total.Count = total.count,
+             Short.Haplotype = short.haplotype)
 
 ##————————————————————————————————————————————————————————————————————————————
 ## Dendrogram plotting -------------------------------------------------------
@@ -362,9 +380,8 @@ map
 ## Plot haplotype networks ---------------------------------------------------
 ##————————————————————————————————————————————————————————————————————————————
 
-library(stringi)
-library(pegas)
 
+#### build haplotype network
 ## as a hacky workaround generate a random alignment with as many different sequences as haplotypes
 no.haplotypes <- length(unique(MD$Haplotype))
 set.seed(1)
@@ -373,13 +390,14 @@ random.strings <- as.DNAbin.alignment(ape::as.alignment(random.strings))
 names(random.strings) <- HD$Haplotype
 ht.d <- ht_distance_matrix(HD)
 ht <- pegas::haplotype(random.strings, d = ht.d)
-attr(ht, "dimnames")[[1]] <- HD$Haplotype
+attr(ht, "dimnames")[[1]] <- HD$Short.Haplotype
 
 ht.net <- haploNet(ht, d = ht.d)
 attr(ht.net, "freq") <- HD$Total.Count
 
-pop.matrix <- as.matrix(HD[, !(names(HD) %in% c("SNP", "SSR1", "SSR2", "SSR3", "Haplotype", "Total.Count"))])
-ec <- colorRampPalette(c("blue", "green", "orange"))(ncol(pop.matrix))
+#### I. Plot the network based on broader (longitudinal) populations
+pop.matrix <- as.matrix(HD[, !(names(HD) %in% c("SNP", "SSR1", "SSR2", "SSR3", "Haplotype", "Total.Count", "Short.Haplotype"))])
+c.lon <- colorRampPalette(c("blue", "green", "orange"))(ncol(pop.matrix))
 
 # pop.colors <- c(ByF = "#0000FF", Den = "red", Har = "#003FBF", Lit = "#00BF3F", Sib = "orange", Slo = "#00FF00", ThF = "#007F7F")
 
@@ -392,20 +410,24 @@ plot(ht.net,
      show.mutation = 1,
      pie = pop.matrix,
      legend = c(4, 31), # coordinates where to draw legend
-     bg = ec)
+     bg = c.lon)
 
 ## manual new layout
 # layout <- replot()
 # replot(layout)
 
 
+#### II. Plot the network based on narrower (landsape) populations
+landscape.pop.matrix <- as.matrix(HDL[, !(names(HDL) %in% c("SNP", "SSR1", "SSR2", "SSR3", "Haplotype", "Total.Count", "Short.Haplotype"))])
+c.landscape <- colorRampPalette(c("blue", "green", "orange"))(ncol(pop.matrix))
 
-# library(gdata)
-# upperTriangle(d) <- lowerTriangle(d, byrow = TRUE)
+# pop.colors <- c(ByF = "#0000FF", Den = "red", Har = "#003FBF", Lit = "#00BF3F", Sib = "orange", Slo = "#00FF00", ThF = "#007F7F")
 
-
-# # hap.alignment <- as.DNAbin(caf)
-# hap.alignment <- as.matrix(hap.alignment)[, 300:500] # check if the region is right
-# haps <- pegas::haplotype(hap.alignment) # does not work, but I dont care, because I only need to set the names anyway
-# attr(haps, "dimnames")[1] <- list(HD$Haplotype)
-
+plot(ht.net,
+     labels = T,
+     threshold = c(1,2), # no alternative mutation links but smallest distance, 0 otherwise c(1,2)
+     size = HDL$Total.Count^(1/2)*0.6, # circle sizes
+     show.mutation = 1,
+     pie = landscape.pop.matrix,
+     legend = c(4, 31), # coordinates where to draw legend
+     bg = c.landscape)
