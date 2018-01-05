@@ -235,11 +235,11 @@ write.csv(cbind(Lab.No = MD$Lab.ID, Haplotypes), "Data/Haplotypes.csv")
 MD$Pop.longitudinal <- factor(MD$Pop.longitudinal,
                                     levels = c("Europe.central", "Europe.east", "Siberia.west", "Kamtchatka", "Alaska"))
 MD$Pop.landscape <- factor(MD$Pop.landscape,
-                           levels = c("Har", "ThF", "ByF", "Slovenia", "Lithuania", "St.Petersburg", "Moscow", "Ural", "Siberia.west.n", "Siberia.west.s", "Kamtchatka", "Alaska"))
+                           levels = c("Har", "ThF", "ByF", "Slovenia", "Lithuania", "St.Petersburg", "Moscow", "Ural", "Siberia.west.n", "Siberia.west.s", "Kamtchatka.mainland", "Kamtchatka.east", "Alaska"))
 MD$Pop.state <- factor(MD$Pop.state,
                        levels = c("Germany", "Slovenia", "Lithuania", "Russia.european", "Ural", "Siberia.west", "Kamtchatka", "Alaska"))
 MD$Pop.grouped <- factor(MD$Pop.grouped,
-                           levels = c("Europe.central: Har", "Europe.central: ThF", "Europe.central: ByF", "Europe.central: Slovenia", "Europe.east: Lithuania", "Europe.east: St.Petersburg", "Europe.east: Moscow", "Siberia.west: Ural", "Siberia.west: Siberia.west.n", "Siberia.west: Siberia.west.s", "Kamtchatka: Kamtchatka", "Alaska: Alaska"))MD$Haplotype <- reorder(MD$Haplotype, MD$SSR1)
+                           levels = c("Europe.central: Har", "Europe.central: ThF", "Europe.central: ByF", "Europe.central: Slovenia", "Europe.east: Lithuania", "Europe.east: St.Petersburg", "Europe.east: Moscow", "Siberia.west: Ural", "Siberia.west: Siberia.west.n", "Siberia.west: Siberia.west.s", "Kamtchatka: Kamtchatka.mainland", "Kamtchatka: Kamtchatka.east", "Alaska: Alaska"))MD$Haplotype <- reorder(MD$Haplotype, MD$SSR1)
 
 
 #### Make haplotype inventory spine plots by region
@@ -254,6 +254,7 @@ labels.landscape <- split(MD$Haplotype, MD$Pop.landscape) %>%
   sapply(droplevels) %>%
   sapply(levels) %>%
   sapply(rev)
+labels.landscape
 lapply(labels.landscape, write, "landscape.txt", append = TRUE, ncolumns = 1000)
 
 
@@ -274,6 +275,7 @@ labels.longitudinal <- split(MD$Haplotype, MD$Pop.longitudinal) %>%
   sapply(droplevels) %>%
   sapply(levels) %>%
   sapply(rev)
+labels.longitudinal
 lapply(labels.longitudinal, write, "longitudinal.txt", append = TRUE, ncolumns = 1000)
 
 table(MD$Haplotype, MD$Pop.longitudinal)
@@ -286,7 +288,7 @@ table(MD$Haplotype, MD$Pop.longitudinal)
 ## … for broader (longitudinal) pops: HD
 Haplotype.Table <- table(MD$Haplotype, MD$Pop.longitudinal)
 Haplotype.Data <- MD[match(rownames(Haplotype.Table), MD$Haplotype), c("SNP", "SSR1", "SSR2", "SSR3")]
-short.haplotype <- with(Haplotype.Data, paste(SSR1, SSR2, SSR3, sep = "–"))
+short.haplotype <- with(Haplotype.Data, paste(SSR1, SSR2, SSR3, sep = "-"))
 attr(Haplotype.Table, "class") <- "matrix"
 total.count <- rowSums(Haplotype.Table)
 Haplotype.Data <- cbind(as.matrix(Haplotype.Table),
@@ -309,7 +311,7 @@ HDL <- cbind(as.matrix(HT.landscape),
 # specimen.distances <- ht_distance_matrix(MD) # note: there will be NAs in the upper triangle
 # specimen.dendrogram <- as.dist(specimen.distances) %>%
 #   hclust(method = "ward.D2")
-# plot(specimen.dendrogram, label = paste(MD$Pop.landscape, MD$Haplotype, sep = " "))
+# plot(specimen.dendrogram, label = paste(MD$Pop.grouped, MD$Haplotype, sep = " "))
 
 
 
@@ -351,7 +353,7 @@ dend %>%
 library(hierfstat) # Nei's D_A 1983 in genet.dist()
 
 # Nei's D_A 1983, (eqn 7) in Takezaki and Nei (1996)
-Neis.Data <- MD[!MD$Is.Outgroup, c(Pop = "Pop.grouped",
+Neis.Data <- MD[!MD$Is.Outgroup, c(Pop = "Pop.grouped", # 
                     "SSR1",
                     "SSR2",
                     "SSR3")] # genet.dist expects A data frame containing population of origin as the first column and multi-locus genotypes in following columns
@@ -390,11 +392,11 @@ map.theme <- theme(panel.background = element_rect(fill = "black"),
                    panel.grid.major = element_line(colour = "gray20"))
 
 xscale <- scale_x_continuous(breaks = NULL) # scale ticks for x axis
-Pop <- MD$Pop.longitudinal
+Pop <- MD$Pop.grouped # .landscape[!MD$Is.Outgroup]
 
 holarctic <- borders("world", colour = "gray85", fill = "gray93") # create a layer of borders, use "worldHires" for publication plotting
 # rivers <- borders("rivers", colour = "gray80", fill = "black") # create a layer of borders, use "worldHires" for publication plotting
-specimen.points <- geom_point(aes(x = Lon, y = Lat, group = Pop, color = Pop), size = 2, data = MD)
+specimen.points <- geom_point(aes(x = Lon, y = Lat, group = Pop, color = Pop), size = 2, data = droplevels(MD)) # MD[!MD$Is.Outgroup,]
 map.projection <- coord_map(projection = "stereographic", ylim = ylims)#, parameters = c(60)) # , ylim = ylims)
 map <- ggplot() + map.projection + holarctic + specimen.points + map.theme + xscale
 map
@@ -436,7 +438,7 @@ plot(ht.net,
      size = HD$Total.Count^(1/2)*0.6, # circle sizes
      show.mutation = 1,
      pie = pop.matrix,
-     legend = c(4, 31), # coordinates where to draw legend
+     legend = c(10, 10), # coordinates where to draw legend
      bg = c.lon)
 
 ## manual new layout
@@ -446,15 +448,15 @@ plot(ht.net,
 
 #### II. Plot the network based on narrower (landsape) populations
 landscape.pop.matrix <- as.matrix(HDL[, !(names(HDL) %in% c("SNP", "SSR1", "SSR2", "SSR3", "Haplotype", "Total.Count", "Short.Haplotype"))])
-c.landscape <- colorRampPalette(c("blue", "green", "orange"))(ncol(pop.matrix))
+c.landscape <- colorRampPalette(c("blue", "green", "yellow", "orange", "red", "purple"))(ncol(landscape.pop.matrix))
 
 # pop.colors <- c(ByF = "#0000FF", Den = "red", Har = "#003FBF", Lit = "#00BF3F", Sib = "orange", Slo = "#00FF00", ThF = "#007F7F")
 
 plot(ht.net,
      labels = T,
      threshold = c(1,2), # no alternative mutation links but smallest distance, 0 otherwise c(1,2)
-     size = HDL$Total.Count^(1/2)*0.6, # circle sizes
+     size = HDL$Total.Count^(1/2)*0.35, # circle sizes
      show.mutation = 1,
      pie = landscape.pop.matrix,
-     legend = c(2, 20), # coordinates where to draw legend
+     legend = c(10, 10), # coordinates where to draw legend
      bg = c.landscape)
