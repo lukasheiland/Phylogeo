@@ -84,8 +84,8 @@ library(geosphere)
 ## a great circle distance was computed between each sample by means of the Vincenty ellipsoid distance method provided by the {geosphere} package.
 ## default unit is meters
 coords <- cbind(Lon = MD$Lon, Lat = MD$Lat)
-# geographic.distances <- distm(coords, coords, fun = distVincentyEllipsoid)
-dimnames(geographic.distances) <- list(MD$Pop.landscape, MD$Pop.landscape)
+geographic.distances <- distm(coords, coords, fun = distVincentyEllipsoid)
+# dimnames(geographic.distances) <- list(MD$Pop.landscape, MD$Pop.landscape)
 # dimnames(geographic.distances) <- list(MD$Pop, MD$Pop) # can be used for later tree plotting
 geographic.dist <- as.dist(geographic.distances, diag = FALSE, upper = FALSE)
 
@@ -94,7 +94,7 @@ geographic.dist <- as.dist(geographic.distances, diag = FALSE, upper = FALSE)
 mean.lats <- aggregate(coords[,"Lat"], by = list(MD$Pop.longitudinal), FUN = mean)
 mean.lat <- mean(mean.lats$x) # mean latitude of the mean latitudes of 9 populations:  57.34942
 coords.with.fixed.lat <- cbind(coords[,"Lon"], rep(mean.lat, nrow(coords)))
-# longitudinal.distances <- distm(coords, coords, fun = distVincentyEllipsoid)
+# longitudinal.distances <- distm(coords.with.fixed.lat, coords.with.fixed.lat, fun = distVincentyEllipsoid)
 dimnames(longitudinal.distances) <- list(MD$Pop.landscape, MD$Pop.landscape)
 longitudinal.dist <- as.dist(longitudinal.distances, diag = FALSE, upper = FALSE)
 
@@ -228,8 +228,15 @@ distance.df <- function(df){
 Haplotypes <- parse_haplotypes(caf)
 MD <- cbind(MD, Haplotypes)
 
+Out.data <- cbind(Lab.No = MD$Lab.ID,
+                  Haplotypes,
+                  Pop = MD$Pop,
+                  Included.in.big.pops = !MD$Is.Outgroup)
+Out.data.longer <- Out.data[match(Metadata.all$Lab.ID, Out.data$Lab.No),]
+
 ## Write a haplotype table out to csv file
-write.csv(cbind(Lab.No = MD$Lab.ID, Haplotypes), "Data/Haplotypes.csv")
+write.csv(Out.data, "Data/Haplotypes.csv")
+write.csv(Out.data.longer, "Data/Haplotypes longer.csv")
 
 #### adjust the order of levels for plotting
 MD$Pop.longitudinal <- factor(MD$Pop.longitudinal,
@@ -313,7 +320,11 @@ HDL <- cbind(as.matrix(HT.landscape),
 #   hclust(method = "ward.D2")
 # plot(specimen.dendrogram, label = paste(MD$Pop.grouped, MD$Haplotype, sep = " "))
 
-
+#### Mantel test
+## Null hypothesis: these two matrices are uncorrelated
+library(ade4) # mantel.rtest(), Data Analysis functions to analyse Ecological and Environmental data in the framework of Euclidean Exploratory methods
+mt <- mantel.rtest(as.dist(geographic.dist), as.dist(specimen.distances), nrepet = 999)
+summary(mt)
 
 ##————————————————————————————————————————————————————————————————————————————
 ## Dendrograms plotting      -------------------------------------------------
