@@ -1,3 +1,5 @@
+setwd("~/Dropbox/Studium/Phylogeography Diphasiastrum complanatum")
+
 ##——————————————————————————————————————————————————————————————————————————
 ## Load packages                                             --------------
 ##——————————————————————————————————————————————————————————————————————————
@@ -31,7 +33,7 @@ load("Data/Alignment cp processed.RData", verbose = T) # load resulting file, co
 
 ### Replace real coordinates with fake column
 # Metadata[,c("Lat", "Lon", "Lat.Lon.Accuracy")] <- Metadata[,c("Lat.fake", "Lon.fake", "Lat.Lon.Accuracy.fake")]
-Metadata[,c("Lat", "Lon")] <- Metadata[,c("Lat.reconstr", "Lon.reconstr")]
+Metadata[,c("Lat", "Lon")] <- Metadata[,c("Lat.fake", "Lon.fake")]
 
 ### alias Metadata
 MD <- Metadata
@@ -49,13 +51,20 @@ ids <- final.ids[order(final.ids)]
 identical(ids, as.character(MD$Lab.ID))
 setdiff(final.ids, Metadata$Lab.ID)
 
+##————————————————————————————————————————————————————————————————————————————
+## Define theme                                          ---------------------
+##————————————————————————————————————————————————————————————————————————————
+
+col.4.pops <- rainbow(4)
+col.6.pops <- rainbow(6)
 
 ##————————————————————————————————————————————————————————————————————————————
 ## Scope                                                 ---------------------
 ##————————————————————————————————————————————————————————————————————————————
 
 nrow(MD) # 252 unique specimens (repetitions were excluded in "Alignment cp.R")
-table(droplevels(MD$Pop)) # for now 8 populations
+table(droplevels(MD$Pop)) # for now 10 populations
+table(droplevels(MD$Pop[!MD$Is.Outgroup])) # for now 10 populations
 
 
 ##————————————————————————————————————————————————————————————————————————————
@@ -84,27 +93,81 @@ library(geosphere)
 ## a great circle distance was computed between each sample by means of the Vincenty ellipsoid distance method provided by the {geosphere} package.
 ## default unit is meters
 coords <- cbind(Lon = MD$Lon, Lat = MD$Lat)
-geographic.distances <- distm(coords, coords, fun = distVincentyEllipsoid)
+geographic.distances <- distm(coords, coords, fun = disGeo) # distVincentyEllipsoid
 # dimnames(geographic.distances) <- list(MD$Pop.landscape, MD$Pop.landscape)
 # dimnames(geographic.distances) <- list(MD$Pop, MD$Pop) # can be used for later tree plotting
 geographic.dist <- as.dist(geographic.distances, diag = FALSE, upper = FALSE)
 
 
 ## alternatively only the longitudinal distance (along one latitude, averaged)
-mean.lats <- aggregate(coords[,"Lat"], by = list(MD$Pop.longitudinal), FUN = mean)
+mean.lats <- aggregate(coords[,"Lat"], by = list(MD$Pop), FUN = mean)
 mean.lat <- mean(mean.lats$x) # mean latitude of the mean latitudes of 9 populations:  57.34942
 coords.with.fixed.lat <- cbind(coords[,"Lon"], rep(mean.lat, nrow(coords)))
-# longitudinal.distances <- distm(coords.with.fixed.lat, coords.with.fixed.lat, fun = distVincentyEllipsoid)
+longitudinal.distances <- distm(coords.with.fixed.lat, coords.with.fixed.lat, fun = distGeo) # distVincentyEllipsoid
 dimnames(longitudinal.distances) <- list(MD$Pop.landscape, MD$Pop.landscape)
 longitudinal.dist <- as.dist(longitudinal.distances, diag = FALSE, upper = FALSE)
 
-##### Cluster pops based on geographical distance
-library(optpart)
+#### Compute the distance between two points
+## expects: two named coordinate vectors each with names "Lon", "Lat"
+## returns: distance in m
 
-plot(pop.tree <- hclust(d = longitudinal.dist, method = "ward.D2"))
-str(pop.tree)
-tree.pops <- cutree(pop.tree, 5)
-table(tree.pops)
+# coords1 <- c(Lon = 8, Lat = 48)
+# coords2 <- c(Lat = 54, Lon = 13)
+
+# eastern_distance <- function(coords1, coords2){
+#   Lat <- mean(c(coords1["Lat"], coords2["Lat"]))
+#   Lon1 <- coords1["Lon"]
+#   Lon2 <- coords2["Lon"]
+#   
+#   ## there are always two westward circle paths, because earth is spherical
+#   ## AND and the direction of origin is unknown because of similarity between haplotypes is also symmetrical
+#   ##   we could try to make similars but unequal directional through coalescent theory
+#   ##   AND ask are the steps more likely to be forward in time when west-east is the presumed direction
+#   
+#   ## however we could build a second matrix of whether the first or the second has simply more repetitions
+#   ## sum of SSR1-3
+#   ## directional similarity matrix
+#   ## and then test the shit
+#   ## simply the smaller longitude is west
+#   
+#   Lon.diff <- Lon1 - Lon2
+#   if(Lon.diff < 0){
+#     Lon.temp.1 <- Lon1
+#     Lon1 <- Lon2
+#     Lon2 <- Lon.temp.1
+#   }
+#   distGeo(c(Lon1, Lat), c(Lon2, Lat))
+# }
+
+
+##### Build a distance matrix for a dataset
+### expects: a data.frame with columns: "UID", "SNP", "SSR1" … "SSR3"
+### returns: a lower triangle distance matrix
+#ht_distance_matrix <- function(df, fun = "ht_distance"){
+#  ## No. of types in data.frame
+#  n <- nrow(df)
+#  ## this simply produces a 2 row matrix of possible unique combinations for n values, where n = nrow(dataframe)
+#  ## combn() achieves "triangular" comparison: of x values, n elements chosen
+#  comb.pairs <- combn(x = nrow(df), 2)
+#  ## compute distances
+#  distances <- apply(comb.pairs,
+#                     MARGIN = 2,
+#                     FUN = function(x)  ht_distance(df[x[1],], df[x[2],]))
+#  ## create empty matrix of n by n, set dimnames to the unique ID
+#  dist.matrix <- matrix(rep(NA, n^2), nrow = n, dimnames = list(df$Lab.ID, df$Lab.ID))
+#  ## fill lower triangle of distance matrix
+#  dist.matrix[lower.tri(dist.matrix)] <- distances
+#  dist.matrix
+#}
+
+
+##### Cluster pops based on geographical distance
+# library(optpart)
+# 
+# plot(pop.tree <- hclust(d = longitudinal.dist, method = "ward.D2"))
+# str(pop.tree)
+# tree.pops <- cutree(pop.tree, 5)
+# table(tree.pops)
 
 
 ##————————————————————————————————————————————————————————————————————————————
@@ -145,23 +208,13 @@ parse_haplotypes <- function(alignment,
 ht_distance <- function(ht1, ht2){
   d <- as.numeric(ht1["SNP"] != ht2["SNP"]) # +1 for different SNPs
   ssr.names <- c("SSR1", "SSR2", "SSR3")
+  # ht1["SSR1"] <-  ht1["SSR1"] * 2
+  # ht2["SSR1"] <- ht2["SSR1"] * 2
   d <- d + sum(abs(ht1[ssr.names] - ht2[ssr.names])) # + sum of absolute SSR count differences
   #d <- d +as.numeric(gt1["Species"] != gt2["Species"])*100
   d
 }
 
-#### Compute a euclidean distance between two haplotype pairs
-## expects: two named sample vectors (gt1, gt2) each with names "SNP", "SSR1" … "SSR3"
-## returns: distance: count of mutational steps, where A->G counts as 1, and differences in respective SSR repetitions count as mutational steps
-euclid_ht_distance <- function(ht1, ht2){
-  snp.d <- as.numeric(ht1["SNP"] != ht2["SNP"]) # +1 for different SNPs
-  ssr1.d <- ht1["SSR1"] -  ht2["SSR1"]
-  ssr2.d <- ht1["SSR2"] -  ht2["SSR2"]
-  ssr3.d <- ht1["SSR3"] -  ht2["SSR3"]
-  
-  d <- sqrt(snp.d^2 + ssr1.d^2 + ssr2.d^2 + ssr3.d^2) # + sum of squared SSR count differences
-  d
-}
 
 #### Build a distance matrix for a dataset
 ## expects: a data.frame with columns: "UID", "SNP", "SSR1" … "SSR3"
@@ -176,26 +229,6 @@ ht_distance_matrix <- function(df, fun = "ht_distance"){
   distances <- apply(comb.pairs,
                      MARGIN = 2,
                      FUN = function(x)  ht_distance(df[x[1],], df[x[2],]))
-  ## create empty matrix of n by n, set dimnames to the unique ID
-  dist.matrix <- matrix(rep(NA, n^2), nrow = n, dimnames = list(df$Lab.ID, df$Lab.ID))
-  ## fill lower triangle of distance matrix
-  dist.matrix[lower.tri(dist.matrix)] <- distances
-  dist.matrix
-}
-
-#### Build a distance matrix for a dataset
-## expects: a data.frame with columns: "UID", "SNP", "SSR1" … "SSR3"
-## returns: a lower triangle distance matrix
-euclid_ht_distance_matrix <- function(df){
-  ## No. of types in data.frame
-  n <- nrow(df)
-  ## this simply produces a 2 row matrix of possible unique combinations for n values, where n = nrow(dataframe)
-  ## combn() achieves "triangular" comparison: of x values, n elements chosen
-  comb.pairs <- combn(x = nrow(df), 2)
-  ## compute distances
-  distances <- apply(comb.pairs,
-                     MARGIN = 2,
-                     FUN = function(x)  euclid_ht_distance(df[x[1],], df[x[2],]))
   ## create empty matrix of n by n, set dimnames to the unique ID
   dist.matrix <- matrix(rep(NA, n^2), nrow = n, dimnames = list(df$Lab.ID, df$Lab.ID))
   ## fill lower triangle of distance matrix
@@ -219,6 +252,8 @@ distance.df <- function(df){
 }
 
 
+
+
 ##————————————————————————————————————————————————————————————————————————————
 ## Analysis                                       ----------------------------
 ##————————————————————————————————————————————————————————————————————————————
@@ -226,7 +261,8 @@ distance.df <- function(df){
 #### do the haplotype reading
 ## caf alias cp.alignment.final
 Haplotypes <- parse_haplotypes(caf)
-MD <- cbind(MD, Haplotypes)
+short.hap <- with(Haplotypes, paste(SSR1, SSR2, SSR3, sep = "-"))
+MD <- cbind(MD, Haplotypes, Short.Haplotype = short.hap)
 
 Out.data <- cbind(Lab.No = MD$Lab.ID,
                   Haplotypes,
@@ -239,14 +275,14 @@ write.csv(Out.data, "Data/Haplotypes.csv")
 write.csv(Out.data.longer, "Data/Haplotypes longer.csv")
 
 #### adjust the order of levels for plotting
-MD$Pop.longitudinal <- factor(MD$Pop.longitudinal,
-                                    levels = c("Europe.central", "Europe.east", "Siberia.west", "Kamtchatka", "Alaska"))
-MD$Pop.landscape <- factor(MD$Pop.landscape,
-                           levels = c("Har", "ThF", "ByF", "Slovenia", "Lithuania", "St.Petersburg", "Moscow", "Ural", "Siberia.west.n", "Siberia.west.s", "Kamtchatka.mainland", "Kamtchatka.east", "Alaska"))
-MD$Pop.state <- factor(MD$Pop.state,
-                       levels = c("Germany", "Slovenia", "Lithuania", "Russia.european", "Ural", "Siberia.west", "Kamtchatka", "Alaska"))
-MD$Pop.grouped <- factor(MD$Pop.grouped,
-                           levels = c("Europe.central: Har", "Europe.central: ThF", "Europe.central: ByF", "Europe.central: Slovenia", "Europe.east: Lithuania", "Europe.east: St.Petersburg", "Europe.east: Moscow", "Siberia.west: Ural", "Siberia.west: Siberia.west.n", "Siberia.west: Siberia.west.s", "Kamtchatka: Kamtchatka.mainland", "Kamtchatka: Kamtchatka.east", "Alaska: Alaska"))MD$Haplotype <- reorder(MD$Haplotype, MD$SSR1)
+MD$Pop.longitudinal <- factor(MD$Pop.longitudinal, levels = c("Europe.central", "Europe.east", "Siberia.west", "Kamtchatka", "Alaska"))
+MD$Pop.landscape <- factor(MD$Pop.landscape, levels = c("Har", "ThF", "ByF", "Slovenia", "Lithuania", "St.Petersburg", "Moscow", "Ural", "Siberia.west.n", "Siberia.west.s", "Kamtchatka.central", "Kamtchatka.north", "Alaska"))
+MD$Pop.state <- factor(MD$Pop.state, levels = c("Germany", "Slovenia", "Lithuania", "Russia.european", "Ural", "Siberia.west", "Kamtchatka", "Alaska"))
+MD$Pop.grouped <- factor(MD$Pop.grouped, levels = c("Europe.central: Har", "Europe.central: ThF", "Europe.central: ByF", "Europe.central: Slovenia", "Europe.east: Lithuania", "Europe.east: St.Petersburg", "Europe.east: Moscow", "Siberia.west: Ural", "Siberia.west: Siberia.west.n", "Siberia.west: Siberia.west.s", "Kamtchatka: Kamtchatka.central", "Kamtchatka: Kamtchatka.north", "Alaska: Alaska"))
+MD$Pop <- factor(MD$Pop, levels = c("Germany", "Slovenia", "Lithuania", "St.Petersburg", "Moscow", "Ural", "Siberia.west.n", "Siberia.west.s", "Kamtchatka", "Alaska"))
+
+MD$Haplotype <- reorder(MD$Haplotype, MD$SSR1)
+MD$Short.Haplotype <- reorder(MD$Short.Haplotype, MD$SSR1)
 
 
 #### Make haplotype inventory spine plots by region
@@ -265,27 +301,19 @@ labels.landscape
 lapply(labels.landscape, write, "landscape.txt", append = TRUE, ncolumns = 1000)
 
 
-spineplot(Haplotype ~ Pop.state, data = MD,
+spineplot(Haplotype ~ Pop, data = MD,
           col = cls(MD$Haplotype),
           ylab = "", xlab = "")
-labels.state <- split(MD$Haplotype, MD$Pop.state) %>%
+labels.pops <- split(MD$Haplotype, MD$Pop) %>%
   sapply(droplevels) %>%
   sapply(levels) %>%
   sapply(rev)
-lapply(labels.state, write, "state.txt", append = TRUE, ncolumns = 1000)
+labels.pops
 
+## write textfile with haplotypes for pops
+# lapply(labels.pops, write, "pops.txt", append = TRUE, ncolumns = 1000)
 
-spineplot(Haplotype ~ Pop.longitudinal, data = MD,
-          col = cls(MD$Haplotype),
-          ylab = "", xlab = "")
-labels.longitudinal <- split(MD$Haplotype, MD$Pop.longitudinal) %>%
-  sapply(droplevels) %>%
-  sapply(levels) %>%
-  sapply(rev)
-labels.longitudinal
-lapply(labels.longitudinal, write, "longitudinal.txt", append = TRUE, ncolumns = 1000)
-
-table(MD$Haplotype, MD$Pop.longitudinal)
+table(MD$Haplotype, MD$Pop)
 
 #### build data frame of unique species-haplotype combinations
 ## alternatively, when dealing with multiple species:
@@ -293,7 +321,7 @@ table(MD$Haplotype, MD$Pop.longitudinal)
 # uhd <- aggregate(Lab.ID ~ Haplotype + Species.mol, data = MD, FUN = length) 
 
 ## … for broader (longitudinal) pops: HD
-Haplotype.Table <- table(MD$Haplotype, MD$Pop.longitudinal)
+Haplotype.Table <- table(MD$Haplotype, MD$Pop)
 Haplotype.Data <- MD[match(rownames(Haplotype.Table), MD$Haplotype), c("SNP", "SSR1", "SSR2", "SSR3")]
 short.haplotype <- with(Haplotype.Data, paste(SSR1, SSR2, SSR3, sep = "-"))
 attr(Haplotype.Table, "class") <- "matrix"
@@ -322,9 +350,29 @@ HDL <- cbind(as.matrix(HT.landscape),
 
 #### Mantel test
 ## Null hypothesis: these two matrices are uncorrelated
-library(ade4) # mantel.rtest(), Data Analysis functions to analyse Ecological and Environmental data in the framework of Euclidean Exploratory methods
-mt <- mantel.rtest(as.dist(geographic.dist), as.dist(specimen.distances), nrepet = 999)
-summary(mt)
+# library(ade4) # mantel.rtest(), Data Analysis functions to analyse Ecological and Environmental data in the framework of Euclidean Exploratory methods
+# mt <- mantel.rtest(as.dist(geographic.dist), as.dist(specimen.distances), nrepet = 999)
+# summary(mt)
+
+
+##————————————————————————————————————————————————————————————————————————————
+## Prepare data for Nested clade analysis           --------------------------
+##————————————————————————————————————————————————————————————————————————————
+
+## Compute a centroid for populations [geosphere::centroid()]
+germany.center <- centroid(as.matrix(MD[MD$Pop == "Germany", c("Lon", "Lat")]))
+lithuania.center <- centroid(as.matrix(MD[MD$Pop == "Lithuania", c("Lon", "Lat")]))
+kamtchatka.center <- centroid(as.matrix(MD[MD$Pop == "Kamtchatka", c("Lon", "Lat")]))
+alaska.center <- centroid(as.matrix(MD[MD$Pop == "Alaska", c("Lon", "Lat")]))
+
+## Pop sizes
+table(droplevels(MD$Pop[!MD$Is.Outgroup])) # for now 10 populations
+
+## Nexus
+cp.alignment.nca <- cp.alignment.final[!MD$Is.Outgroup]
+names(cp.alignment.nca) <- paste0("DIPcom", MD$Lab.ID, ".", MD$Pop)[!MD$Is.Outgroup]
+writeXStringSet(cp.alignment.nca, filepath = "Data/Alignment NCA.fas")
+
 
 ##————————————————————————————————————————————————————————————————————————————
 ## Dendrograms plotting      -------------------------------------------------
@@ -333,38 +381,94 @@ library("dendextend") # for customizing dendrograms
 library("circlize") # for circlizing dendrograms
 
 #### I. Haplotypes
-## Cluster the haplotypes
-haplotype.distances <- ht_distance_matrix(HD) # note: there will be NAs in the upper triangle
-haplotype.dendrogram <- as.dist(haplotype.distances) %>%
-  hclust(method = "ward.D2")
-plot(haplotype.dendrogram, label = HD$Haplotype)
+## Subset the haplotype data, e.g. to populations
+HD.sub <- HD #[HD$Kamtchatka > 0,]
+
+## Distances
+haplotype.distances <- ht_distance_matrix(HD.sub) # note: there will be NAs in the upper triangle
+dimnames(haplotype.distances) <- list(HD.sub$Short.Haplotype, HD.sub$Short.Haplotype) # dimnames are passed on as labels to derivated classes
+
+## Distances including outgroup
+manual.outgroup <- data.frame(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, SNP = as.factor("A"), SSR1 = 2, SSR2 = 0, SSR3 = 2, Total.count = 2, Short.Haplotype = as.factor("2-0-2"))
+colnames(manual.outgroup) <- colnames(HD.sub)
+HD.out <- rbind(HD.sub, manual.outgroup)
+haplotype.distances.out <- ht_distance_matrix(HD.out)
+dimnames(haplotype.distances.out) <- list(HD.out$Short.Haplotype, HD.out$Short.Haplotype) # dimnames are passed on as labels to derivated classes
 
 
-####
-dend <- as.dendrogram(haplotype.dendrogram)
-p.sizes <- (0.5*HD$Total.Count^(1/2))[order.dendrogram(dend)]
+library("phangorn") # upgma
 
-par(mar=c(2, 1, 2, 9))
 
-dend %>%
-  set("leaves_pch", 10) %>%  # node point type
-  set("leaves_cex", p.sizes) %>%  # node point size
-  # set("labels_col", DC$Region) %>% # change color
-  # set("labels_col", c("black", "red", "grey"), k=3) %>% # color labels by specifying the number of cluster (k)
-  # set("leaves_col", rc[p.colors]) %>% # node point color
-  # hang.dendrogram() %>%
-  circlize_dendrogram()
+# library("ggtree") # convert to ggplottable object
+# library("ggstance") # vertical
 
-  # plot() 
+# plot(upgma(haplotype.distances))
+# # as.ggdend(as.dendrogram(upgma(haplotype.distances)))
+# 
+# upgma.tree <- ggtree(upgma(haplotype.distances), ladderize = F) + geom_tiplab(size = 2)
+# 
+# nj.tree <- ggtree(bionj(haplotype.distances)) + geom_tiplab(size = 4)
+# 
+# tree.labels <- upgma.tree$data$label[!is.na(upgma.tree$data$label)]
+# 
+# PD <- data.frame(id = MD$Short.Haplotype,
+#                  Hap = MD$Short.Haplotype,
+#                  Count = HD$Total.Count[match(MD$Short.Haplotype, HD$Short.Haplotype)],
+#                  Pop = MD$Pop)
+# 
+# facet_plot(upgma.tree,
+#            panel = "Stacked",
+#            data = PD,
+#            geom = geom_barh,
+#            mapping = aes(x = Count, fill = Pop),
+#            stat = "identity")
+# 
+# facet_plot(nj.tree,
+#            panel = "Stacked",
+#            data = PD,
+#            geom = geom_dotplot,
+#            aes(x = Count, group = Pop, col = Pop, fill = Pop), # fill = category
+#            method = "histodot",
+#            binaxis = "y",
+#            dotsize = 0.1, # relative to binwidth
+#            binpositions = "all",
+#            binwidth = 1,
+#            stackdir = "up",
+#            stackgroups = T,
+#            stackratio = 1.4,
+#            show.legend = T)
+# 
+# 
 
-# rect.dendrogram(dend, k=3, border = 8, lty = 5, lwd = 1, horiz = T)
 
-#### II. Populations
-# library(adegenet) # multivariate analysis of genetic markers, 
+library(phyloseq) # nice tree plotting with dots
+
+pop.matrix <- as.matrix(HD[, !(names(HD) %in% c("SNP", "SSR1", "SSR2", "SSR3", "Haplotype", "Total.Count", "Short.Haplotype", "Slovenia", "St.Petersburg", "Moscow", "Ural", "Siberia.west.n", "Siberia.west.s"))]) # "Slovenia", "St.Petersburg", "Moscow", "Ural", "Siberia.west.n", "Siberia.west.s"
+rownames(pop.matrix) <- HD$Short.Haplotype
+
+
+nj.phylo <- bionj(haplotype.distances.out)
+nj.phylo.rooted <- root.phylo(nj.phylo, outgroup = "2-0-2", resolve.root = T)
+is.rooted(nj.phylo.rooted)
+haplotype.phylo <- phyloseq(otu_table(pop.matrix, taxa_are_rows = T), nj.phylo.rooted)
+plot_tree(haplotype.phylo, color = "samples", size = "abundance", label.tips = "taxa_names", sizebase = 2, base.spacing = 0.05) # phyloseq
+
+
+upgma.phylo <- upgma(haplotype.distances)
+haplotype.phylo <- phyloseq(otu_table(pop.matrix, taxa_are_rows = T), upgma.phylo)
+plot_tree(haplotype.phylo, color = "samples", size = "abundance", label.tips = "taxa_names", sizebase = 2, base.spacing = 0.05) # phyloseq
+
+## this is a ggplot object!
+# ggtree(haplotype.phylo) +
+#   geom_point(aes(x = x + hjust, color = "samples"), na.rm = T)
+
+
+
+#### II. Unrooted tree for populations
 library(hierfstat) # Nei's D_A 1983 in genet.dist()
 
 # Nei's D_A 1983, (eqn 7) in Takezaki and Nei (1996)
-Neis.Data <- MD[!MD$Is.Outgroup, c(Pop = "Pop.grouped", # 
+Neis.Data <- MD[!MD$Is.Outgroup, c(Pop = "Pop", # 
                     "SSR1",
                     "SSR2",
                     "SSR3")] # genet.dist expects A data frame containing population of origin as the first column and multi-locus genotypes in following columns
@@ -383,18 +487,18 @@ dimnames(neis.Da) <- list(levels(Neis.Data$Pop), levels(Neis.Data$Pop))
 nj.pop.cluster <- bionj(neis.Da) # nj() for classic Saitou amd Nei (1987)
 # tiplabels(pop.clust) <- levels(Neis.Data$Pop)
 # pop.clust <- hclust(neis.Da, method = "ward.D2")
-plot.phylo(nj.pop.cluster, type = "radial") # type = "unrooted"
+plot.phylo(nj.pop.cluster, type = "unrooted") # type = "unrooted"
+
 
 ##————————————————————————————————————————————————————————————————————————————
-## Map drawing                                           ---------------------
+## Draw map                                              ---------------------
 ##————————————————————————————————————————————————————————————————————————————
 library(maps)
 library(mapdata)
 library(mapproj)
 library(ggmap)
 
-
-ylims <- c(40, 90) # longitudinal limits for drawing expressed in degrees (range from to)
+ylims <- c(90, 40) # longitudinal limits for drawing expressed in degrees (range from to)
 xlims <- c(NA, NA) # latitudinal limits
 # projection.true.degrees <- c(50, 90) # parameters for albers or lambert projection
 
@@ -403,11 +507,11 @@ map.theme <- theme(panel.background = element_rect(fill = "black"),
                    panel.grid.major = element_line(colour = "gray20"))
 
 xscale <- scale_x_continuous(breaks = NULL) # scale ticks for x axis
-Pop <- MD$Pop.grouped # .landscape[!MD$Is.Outgroup]
+Pop <- MD$Pop[!MD$Is.Outgroup]
 
 holarctic <- borders("world", colour = "gray85", fill = "gray93") # create a layer of borders, use "worldHires" for publication plotting
 # rivers <- borders("rivers", colour = "gray80", fill = "black") # create a layer of borders, use "worldHires" for publication plotting
-specimen.points <- geom_point(aes(x = Lon, y = Lat, group = Pop, color = Pop), size = 2, data = droplevels(MD)) # MD[!MD$Is.Outgroup,]
+specimen.points <- geom_point(aes(x = Lon, y = Lat, group = Pop, color = Pop), size = 2, data = droplevels(MD[!MD$Is.Outgroup,])) # MD[!MD$Is.Outgroup,]
 map.projection <- coord_map(projection = "stereographic", ylim = ylims)#, parameters = c(60)) # , ylim = ylims)
 map <- ggplot() + map.projection + holarctic + specimen.points + map.theme + xscale
 map
@@ -415,9 +519,8 @@ map
 # geom_encircle(aes(x=lon, y=lat), data = places_loc, size = 2, color = "blue")
 
 
-
 ##————————————————————————————————————————————————————————————————————————————
-## Plot haplotype networks ---------------------------------------------------
+## Plot haplotype network  ---------------------------------------------------
 ##————————————————————————————————————————————————————————————————————————————
 
 
@@ -432,11 +535,11 @@ ht.d <- ht_distance_matrix(HD)
 ht <- pegas::haplotype(random.strings, d = ht.d)
 attr(ht, "dimnames")[[1]] <- HD$Short.Haplotype
 
-ht.net <- haploNet(ht, d = ht.d)
+ht.net <- haploNet(ht, d = ht.d, getProb = T)
 attr(ht.net, "freq") <- HD$Total.Count
 
 #### I. Plot the network based on broader (longitudinal) populations
-pop.matrix <- as.matrix(HD[, !(names(HD) %in% c("SNP", "SSR1", "SSR2", "SSR3", "Haplotype", "Total.Count", "Short.Haplotype"))])
+pop.matrix <- as.matrix(HD[, !(names(HD) %in% c("SNP", "SSR1", "SSR2", "SSR3", "Haplotype", "Total.Count", "Short.Haplotype", "Slovenia", "St.Petersburg", "Moscow", "Ural", "Siberia.west.n", "Siberia.west.s"))])
 c.lon <- colorRampPalette(c("blue", "green", "orange"))(ncol(pop.matrix))
 
 # pop.colors <- c(ByF = "#0000FF", Den = "red", Har = "#003FBF", Lit = "#00BF3F", Sib = "orange", Slo = "#00FF00", ThF = "#007F7F")
@@ -445,8 +548,8 @@ par(mar = c(0, 0, 0, 0))
 
 plot(ht.net,
      labels = T,
-     threshold = c(1,2), # no alternative mutation links but smallest distance, 0 otherwise c(1,2)
-     size = HD$Total.Count^(1/2)*0.6, # circle sizes
+     threshold = c(0,2), # no alternative mutation links but smallest distance, 0 otherwise c(1,2)
+     size = HD$Total.Count^(1/2)*0.3, # circle sizes
      show.mutation = 1,
      pie = pop.matrix,
      legend = c(10, 10), # coordinates where to draw legend
@@ -471,3 +574,21 @@ plot(ht.net,
      pie = landscape.pop.matrix,
      legend = c(10, 10), # coordinates where to draw legend
      bg = c.landscape)
+
+
+##————————————————————————————————————————————————————————————————————————————
+## Draw 3D Haplos                                       ---------------------
+##————————————————————————————————————————————————————————————————————————————
+
+library(rgl)
+
+plot3d(HD$SSR1, HD$SSR2, HD$SSR3, type = 's', size = total.count^(1/3))
+
+
+##————————————————————————————————————————————————————————————————————————————
+## Lonplot                                       ---------------------
+##————————————————————————————————————————————————————————————————————————————
+Lon.pos <- MD$Lon
+Lon.pos[Lon.pos < 0] <- Lon.pos[Lon.pos < 0] + 360
+
+plot(SSR3 ~ Lon.pos, data = MD)
