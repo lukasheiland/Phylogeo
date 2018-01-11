@@ -72,13 +72,13 @@ setdiff(final.ids, Metadata$Lab.ID)
 ## Define theme                                          ---------------------
 ##————————————————————————————————————————————————————————————————————————————
 
-# background.col
-# line.col
+bg.colour <- "#F6F4F0"
+line.colour <- "#101010"
 
-cols.4.pops <- rainbow(4)
-cols.6.pops <- rainbow(6)
+pop.colours <- c(Germany = "#F83600", Lithuania = "#006ACD", Kamtchatka = "#0EDD3C", Alaska = "#FFDA00")
+pop.9.colours <- rainbow(9)
 
-cols.17.haps <-
+cols.17.haps <- c("F83600", "006ACD", "7FE700", "FFDA00")
 
 # pop.colors <- c(ByF = "#0000FF", Den = "red", Har = "#003FBF", Lit = "#00BF3F", Sib = "orange", Slo = "#00FF00", ThF = "#007F7F")
 
@@ -87,8 +87,10 @@ cols.17.haps <-
 ## Scope                                                 ---------------------
 ##————————————————————————————————————————————————————————————————————————————
 
-nrow(MD) # 252 unique specimens (repetitions were excluded in "Alignment cp.R")
+nrow(MD) # 245 unique specimens (repetitions were excluded in "Alignment cp.R")
 table(droplevels(MD$Pop)) # for now 10 populations
+
+nrow(MD[!MD$Is.Outgroup,])
 table(droplevels(MD$Pop[!MD$Is.Outgroup])) # for now 10 populations
 
 
@@ -354,7 +356,7 @@ haplotype.distances <- ht_distance_matrix(HD.sub) # note: there will be NAs in t
 dimnames(haplotype.distances) <- list(HD.sub$Short.Haplotype, HD.sub$Short.Haplotype) # dimnames are passed on as labels to derivated classes
 
 ## Distances including outgroup
-manual.outgroup <- data.frame(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, SNP = as.factor("A"), SSR1 = 2, SSR2 = 0, SSR3 = 2, Total.count = 2, Short.Haplotype = as.factor("2-0-2"))
+manual.outgroup <- data.frame(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, SNP = as.factor("A"), SSR1 = 2, SSR2 = 0, SSR3 = 2, Total.count = 2, Haplotype = as.factor("A_2_0_2"), Short.Haplotype = as.factor("2-0-2"))
 colnames(manual.outgroup) <- colnames(HD.sub)
 HD.out <- rbind(HD.sub, manual.outgroup)
 haplotype.distances.out <- ht_distance_matrix(HD.out)
@@ -375,11 +377,22 @@ plot_tree(haplotype.phylo, color = "samples", size = "abundance", label.tips = "
 ## Plot a UPGMA tree
 upgma.phylo <- upgma(haplotype.distances)
 haplotype.phylo <- phyloseq(otu_table(pop.matrix, taxa_are_rows = T), upgma.phylo)
-plot_tree(haplotype.phylo, color = "samples", size = "abundance", label.tips = "taxa_names", sizebase = 2, base.spacing = 0.05) # phyloseq
+plot_tree(haplotype.phylo, color = "samples", size = "abundance", label.tips = "taxa_names", sizebase = 2, base.spacing = 0.08) +
+  scale_colour_manual(values = pop.colours)
+ # phyloseq
+# cut the tree into 1, 2, 3
+# draw x-axis!
+
+## Plot a WARD's tree
+ward.phylo <- hclust(as.dist(haplotype.distances), method = "ward.D2")
+haplotype.phylo <- phyloseq(otu_table(pop.matrix, taxa_are_rows = T), as.phylo(ward.phylo))
+plot_tree(haplotype.phylo, color = "samples", size = "abundance", label.tips = "taxa_names", sizebase = 2, base.spacing = 0.08) +
+  scale_colour_manual(values = pop.colours)
+# phyloseq
 
 ## Note: this is a ggplot object!
 # ggtree(haplotype.phylo) +
-#   geom_point(aes(x = x + hjust, color = "samples"), na.rm = T)
+#   geom_point(aes(x = x + hjust, color = "samples"), na.rm = T) +
 
 
 #### II. Unrooted tree for populations
@@ -411,22 +424,25 @@ plot.phylo(nj.pop.cluster, type = "unrooted") # type = "unrooted" # ape::
 ## Draw map                                              ---------------------
 ##————————————————————————————————————————————————————————————————————————————
 
+
+
 ylims <- c(90, 40) # longitudinal limits for drawing expressed in degrees (range from to)
 xlims <- c(NA, NA) # latitudinal limits
 # projection.true.degrees <- c(50, 90) # parameters for albers or lambert projection
 
+map.theme <- theme(panel.background = element_rect(fill = "white"),
+                   panel.grid.major = element_line(colour = "gray90"))
 
-map.theme <- theme(panel.background = element_rect(fill = "black"),
-                   panel.grid.major = element_line(colour = "gray20"))
-
-xscale <- scale_x_continuous(breaks = NULL) # scale ticks for x axis
+xscale <- scale_x_continuous(breaks = NULL) # scale ticks for x axis: invisible
 Pop <- MD$Pop[!MD$Is.Outgroup]
 
-holarctic <- borders("world", colour = "gray85", fill = "gray93") # create a layer of borders, use "worldHires" for publication plotting
-# rivers <- borders("rivers", colour = "gray80", fill = "black") # create a layer of borders, use "worldHires" for publication plotting
-specimen.points <- geom_point(aes(x = Lon, y = Lat, group = Pop, color = Pop), size = 2, data = droplevels(MD[!MD$Is.Outgroup,])) # MD[!MD$Is.Outgroup,]
+library(rworldmap)
+data(coastsCoarse)
+# holarctic <- geom_map(data = coastsCoarse, map = fortify(coastsCoarse), colour = line.colour, fill = "white", map_id = 1:5128) # create a layer of borders, use "worldHires" for publication plotting
+holarctic <- borders("world", colour = line.colour, fill = bg.colour) # create a layer of borders, use "worldHires" for publication plotting
+specimen.points <- geom_point(aes(x = Lon, y = Lat, group = Pop, color = Pop), size = 2.3, shape = 21, data = droplevels(MD[!MD$Is.Outgroup,])) # MD[!MD$Is.Outgroup,]
 map.projection <- coord_map(projection = "stereographic", ylim = ylims)#, parameters = c(60)) # , ylim = ylims)
-map <- ggplot() + map.projection + holarctic + specimen.points + map.theme + xscale
+map <- ggplot() + map.projection + holarctic + specimen.points + map.theme + xscale + scale_colour_manual(values = pop.colours, guide = FALSE)
 map
 
 # geom_encircle(aes(x=lon, y=lat), data = places_loc, size = 2, color = "blue")
@@ -453,16 +469,15 @@ attr(ht.net, "freq") <- HD$Total.Count
 
 #### I. Plot the network based on broader (longitudinal) populations
 pop.matrix <- as.matrix(HD[, !(names(HD) %in% c("SNP", "SSR1", "SSR2", "SSR3", "Haplotype", "Total.Count", "Short.Haplotype", "Slovenia", "St.Petersburg", "Moscow", "Ural", "Siberia.west.n", "Siberia.west.s"))])
-c.lon <- colorRampPalette(c("blue", "green", "orange"))(ncol(pop.matrix))
 
 plot(ht.net,
      labels = T,
-     threshold = c(0,2), # no alternative mutation links but smallest distance, 0 otherwise c(1,2)
+     threshold = c(0, 0), # no alternative mutation links but smallest distance, 0 otherwise c(1,2)
      size = HD$Total.Count^(1/2)*0.3, # circle sizes
      show.mutation = 1,
      pie = pop.matrix,
      legend = c(10, 10), # coordinates where to draw legend
-     bg = c.lon)
+     bg = pop.colours)
 
 ## manual new layout
 # layout <- replot()
