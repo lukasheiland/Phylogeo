@@ -48,9 +48,8 @@ load("Data/Alignment cp processed.RData", verbose = T) # load resulting file, co
 # Metadata # data frame
 # cp.alignment.processed
 
-### Replace real coordinates with fake column
-# Metadata[,c("Lat", "Lon", "Lat.Lon.Accuracy")] <- Metadata[,c("Lat.fake", "Lon.fake", "Lat.Lon.Accuracy.fake")]
-Metadata[,c("Lat", "Lon")] <- Metadata[,c("Lat.fake", "Lon.fake")]
+### Replace coordinate column with reconstructed coordinate column
+Metadata[,c("Lat", "Lon", "Lat.Lon.Accuracy")] <- Metadata[,c("Lat.constr", "Lon.constr", "Lat.Lon.Accuracy.constr")]
 
 ### alias Metadata
 MD <- Metadata
@@ -120,7 +119,7 @@ library(geosphere)
 ## a great circle distance was computed between each sample by means of the Vincenty ellipsoid distance method provided by the {geosphere} package.
 ## default unit is meters
 coords <- cbind(Lon = MD$Lon, Lat = MD$Lat)
-geographic.distances <- distm(coords, coords, fun = disGeo) # distVincentyEllipsoid
+geographic.distances <- distm(coords, coords, fun = distGeo) # distVincentyEllipsoid
 # dimnames(geographic.distances) <- list(MD$Pop.landscape, MD$Pop.landscape)
 # dimnames(geographic.distances) <- list(MD$Pop, MD$Pop) # can be used for later tree plotting
 geographic.dist <- as.dist(geographic.distances, diag = FALSE, upper = FALSE)
@@ -308,20 +307,25 @@ HDL <- cbind(as.matrix(HT.landscape),
 ## relevel the Haplotype factor in SSR1 order
 HDL$Short.Haplotype <- reorder(HDL$Short.Haplotype, HDL$SSR1)
 
+#### specimen distance matrix
+## this is quite computation intensive
+# specimen.distances <- ht_distance_matrix(MD) # note: there will be NAs in the upper triangle
 
 #### Cluster the specimens
-# specimen.distances <- ht_distance_matrix(MD) # note: there will be NAs in the upper triangle
 # specimen.dendrogram <- as.dist(specimen.distances) %>%
 #   hclust(method = "ward.D2")
 # plot(specimen.dendrogram, label = paste(MD$Pop.grouped, MD$Haplotype, sep = " "))
 
 #### Mantel test
-## Null hypothesis: these two matrices are uncorrelated
-# library(ade4) # mantel.rtest(), Data Analysis functions to analyse Ecological and Environmental data in the framework of Euclidean Exploratory methods
-# mt <- mantel.rtest(as.dist(geographic.dist), as.dist(specimen.distances), nrepet = 999)
-# summary(mt)
+# Null hypothesis: these two matrices are uncorrelated
+library(ade4) # mantel.rtest(), Data Analysis functions to analyse Ecological and Environmental data in the framework of Euclidean Exploratory methods
+mt <- mantel.rtest(as.dist(geographic.dist), as.dist(specimen.distances), nrepet = 9999)
+summary(mt)
 
-
+#### Amova
+HD.pops <- HD[, !(names(HD) %in% c("SNP", "SSR1", "SSR2", "SSR3", "Haplotype", "Total.Count", "Short.Haplotype", "Slovenia", "St.Petersburg", "Moscow", "Ural", "Siberia.west.n", "Siberia.west.s"))]
+amova(samples = HD.pops, distances = as.dist(haplotype.distances), distances = as.dist(haplotype.distances), data.frame(c(1:4)))
+ 
 
 
 ##————————————————————————————————————————————————————————————————————————————
@@ -517,4 +521,14 @@ Lon.pos[Lon.pos < 0] <- Lon.pos[Lon.pos < 0] + 360
 
 plot(SSR3 ~ Lon.pos, data = MD)
 summary(lm(SSR3 ~ Lon.pos, data = MD))
+
+### SSR1 variation
+MD.x.3.4 <- MD[MD$SSR2 == 3 & MD$SSR3 == 4,]
+Lon.pos <- MD.x.3.4$Lon
+Lon.pos[Lon.pos < 0] <- Lon.pos[Lon.pos < 0] + 360
+
+plot(SSR1 ~ Lon, data = MD.x.3.4)
+summary(lm(SSR1 ~ Lon, data = MD.x.3.4))
+## nichts geographisches Erkennbar
+
 
