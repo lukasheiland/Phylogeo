@@ -240,9 +240,15 @@ MD <- cbind(MD, Haplotypes)
 
 #### Write a haplotype table out to csv file
 Out.Data <- cbind(Lab.No = MD$Lab.ID,
+                  MD$Haplotype
                   Haplotypes,
                   Pop = MD$Pop,
-                  Included.in.big.pops = !MD$Is.Outgroup)
+                  Included.in.big.pops = !MD$Is.Outgroup,
+                  MD$Lon,
+                  MD$Lat,
+                  MD$Lat.Lon.Accuracy.constr,
+                  MD$Lat.Lon.Accuracy)
+
 # Out.Data.longer <- Out.Data[match(Metadata.all$Lab.ID, Out.data$Lab.No),]
 write.csv(Out.Data, "Data/Haplotypes.csv")
 # write.csv(Out.Data.longer, "Data/Haplotypes longer.csv")
@@ -593,10 +599,15 @@ MD.long.pops <- droplevels(MD.long.pops)
 ggplot(MD.long.pops, aes(x = Count, fill = SSR)) +
   stat_bin(binwidth = 1)
 
-######### dieses
+######### DIESES
+population.totals <- table(MD.pops$Pop)[MD.pops$Pop]
+standardized <- 
+
 ggplot(MD.pops, aes(x = SSR1, fill = Pop)) +
   stat_bin(binwidth = 1) +
-  scale_fill_manual(values = pop.colours)
+  scale_fill_manual(values = pop.colours) +
+  scale_x_continuous(breaks=c(8:16)) +
+  theme_bw()
 
 library(lattice)
 histogram(~ SSR2 | Pop, data = MD.pops)
