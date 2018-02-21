@@ -1,7 +1,5 @@
 ## Set working directory to source file location!
 
-setwd("~/Dropbox/Studium/Phylogeography Diphasiastrum complanatum")
-
 ##——————————————————————————————————————————————————————————————————————————
 ## Load packages                                             --------------
 ##——————————————————————————————————————————————————————————————————————————
@@ -240,7 +238,7 @@ MD <- cbind(MD, Haplotypes)
 
 #### Write a haplotype table out to csv file
 Out.Data <- cbind(Lab.No = MD$Lab.ID,
-                  MD$Haplotype
+                  MD$Haplotype,
                   Haplotypes,
                   Pop = MD$Pop,
                   Included.in.big.pops = !MD$Is.Outgroup,
@@ -404,8 +402,10 @@ attr(hd.renamed, "Labels") <- HD$Short.Haplotype
 clustered <- bestopt(hd.renamed, numrep = 10^3, numclu = 16) # 10^4 was tried: same
 Clusters <- data.frame(Cluster = clustered$clustering, Short.Haplotype = clustered$names)
 
-HD.Groups <- match(HD$Short.Haplotype, Clusters$Short.Haplotype)
-rev(Clusters$Cluster)
+# HD.Groups <- match(HD$Short.Haplotype, Clusters$Short.Haplotype)
+# rev(Clusters$Cluster)
+
+HD.clustered <- cbind(HD, Clusters)
 
 # par(.pardefault)
 # par(mar = c(3, 1, 1, 5))
@@ -478,8 +478,8 @@ plot.phylo(nj.pop.cluster, type = "unrooted") # type = "unrooted" # ape::
 
 
 
-ylims <- c(90, 40) # longitudinal limits for drawing expressed in degrees (range from to)
-xlims <- c(NA, NA) # latitudinal limits
+ylims <- c(90, 40) # limits for drawing expressed in degrees (range from to)
+xlims <- c(NA, NA) # limits
 # projection.true.degrees <- c(50, 90) # parameters for albers or lambert projection
 
 map.theme <- theme(panel.background = element_rect(fill = "white"),
@@ -538,7 +538,7 @@ attr(ht, "dimnames")[[1]] <- HD$Haplotype.Vector
 ht.net <- haploNet(ht, d = ht.d, getProb = T)
 attr(ht.net, "freq") <- HD$Total.Count
 
-#### I. Plot the network based on broader (longitudinal) populations
+#### I. Plot the network based on broader populations
 par(.pardefault)
 pop.matrix <- as.matrix(HD[, !(names(HD) %in% c("SNP", "SSR1", "SSR2", "SSR3", "Haplotype", "Total.Count", "Short.Haplotype", "Slovenia", "St.Petersburg", "Moscow", "Ural", "Siberia.west.n", "Siberia.west.s", "Haplotype.Vector"))])
 
@@ -556,7 +556,7 @@ plot(ht.net,
 # replot(layout)
 
 
-# #### II. Plot the network based on narrower (landsape) populations
+# #### II. Plot the network based on narrower (landscape) populations
 # landscape.pop.matrix <- as.matrix(HDL[, !(names(HDL) %in% c("SNP", "SSR1", "SSR2", "SSR3", "Haplotype", "Total.Count", "Short.Haplotype", "Haplotype.Vector"))])
 # c.landscape <- colorRampPalette(c("blue", "green", "yellow", "orange", "red", "purple"))(ncol(landscape.pop.matrix))
 # 
@@ -580,7 +580,7 @@ library(rgl)
 
 plot3d(HD$SSR1, HD$SSR2, HD$SSR3, type = 's', size = total.count^(1/3),
        xlab = "l", ylab = "m", zlab = "n", box = T, axes = T, expand = 1.4, col = groups)
-
+# dput(HD)
 
 ##————————————————————————————————————————————————————————————————————————————
 ## Statistical Analysis of Haplotype distribution        ---------------------
@@ -600,14 +600,27 @@ ggplot(MD.long.pops, aes(x = Count, fill = SSR)) +
   stat_bin(binwidth = 1)
 
 ######### DIESES
-population.totals <- table(MD.pops$Pop)[MD.pops$Pop]
-standardized <- 
+population.totals <- colSums(HD.pops)
+standardized <- t(apply(MD.pops, 1, FUN = function(x) x/population.totals))
+SD <- cbind(l = HD$SSR1, standardized)
+SD <- gather(SD, "l")
+names(SD) <- c("l", "Pop", "Ratio")
+SD$Pop <- factor(SD$Pop, levels = c("Germany", "Lithuania", "Kamtchatka", "Alaska"))
 
-ggplot(MD.pops, aes(x = SSR1, fill = Pop)) +
-  stat_bin(binwidth = 1) +
+### neu
+ggplot(SD, aes(x = l, y = Ratio, fill = Pop)) +
+  geom_bar(stat = "identity") + # stat_count
   scale_fill_manual(values = pop.colours) +
-  scale_x_continuous(breaks=c(8:16)) +
+  scale_x_continuous(breaks = c(8:16), labels = as.character(c(8:16))) +
+  scale_y_continuous(labels = scales::percent) +
   theme_bw()
+
+### unskaliert
+ggplot(MD.pops, aes(x = SSR1, fill = Pop)) +
+  geom_bar(binwidth = 1) + # stat_count
+  scale_fill_manual(values = pop.colours) #+
+  # scale_x_continuous(breaks = c(8:16)) +
+  # theme_bw()
 
 library(lattice)
 histogram(~ SSR2 | Pop, data = MD.pops)
