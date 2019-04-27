@@ -134,7 +134,7 @@ longitudinal.dist <- as.dist(longitudinal.distances, diag = FALSE, upper = FALSE
 
 ##### Cluster pops based on geographical distance
 # library(optpart)
-# 
+#
 # plot(pop.tree <- hclust(d = longitudinal.dist, method = "ward.D2"))
 # str(pop.tree)
 # tree.pops <- cutree(pop.tree, 5)
@@ -154,21 +154,21 @@ longitudinal.dist <- as.dist(longitudinal.distances, diag = FALSE, upper = FALSE
 
 parse_haplotypes <- function(alignment,
                              snp.regexp = "(?<=GAAAGAAAAA)[AGCT]{1,}(?=AAAA(\\-){1,}CCC)"){
-  
+
   al.strings <- sapply(alignment, FUN = as.character)
-  
+
   snp <- str_extract(al.strings, snp.regexp)
-  
+
   ssr1 <- str_count(str_extract(al.strings, "(?<=TTTC)(AAAT){1,}(?=\\-)"), "AAAT")
   ssr2 <- str_count(str_extract(al.strings, "(?<=\\-)(AT){1,}(?=\\-)"), "AT")
   ssr3 <- str_count(str_extract(al.strings, "(?<=\\-)(ATTT){1,}(?=\\-)"), "ATTT")
-  
+
   haplotype.string <- paste(snp, ssr1, ssr2, ssr3, sep = "_")
   short.haplotype.string <- paste(ssr1, ssr2, ssr3, sep = "-")
-  data.frame(SNP = snp, 
-             SSR1 = ssr1, 
-             SSR2 = ssr2, 
-             SSR3 = ssr3, 
+  data.frame(SNP = snp,
+             SSR1 = ssr1,
+             SSR2 = ssr2,
+             SSR3 = ssr3,
              Haplotype = haplotype.string,
              Short.Haplotype = short.haplotype.string,
              File.Names = names(al.strings))
@@ -285,7 +285,7 @@ table(MD$Haplotype, MD$Pop)
 #### build data frame of unique haplotypes
 ## alternatively, when dealing with multiple species:
 ## use permutations of Haplotype and Species to return the length of the Lab.ID vector, i. e. the count of the samples
-# uhd <- aggregate(Lab.ID ~ Haplotype + Species.mol, data = MD, FUN = length) 
+# uhd <- aggregate(Lab.ID ~ Haplotype + Species.mol, data = MD, FUN = length)
 
 Haplotype.Table <- table(MD$Short.Haplotype, MD$Pop)
 Haplotype.Data <- MD[match(rownames(Haplotype.Table), MD$Short.Haplotype), c("SNP", "SSR1", "SSR2", "SSR3", "Haplotype", "Short.Haplotype")]
@@ -339,7 +339,7 @@ summary(mt)
 #### Amova
 HD.pops <- HD[, !(names(HD) %in% c("SNP", "SSR1", "SSR2", "SSR3", "Haplotype", "Total.Count", "Short.Haplotype", "Slovenia", "St.Petersburg", "Moscow", "Ural", "Siberia.west.n", "Siberia.west.s", "Haplotype.Vector"))]
 amova(samples = HD.pops, distances = as.dist(haplotype.distances), distances = as.dist(haplotype.distances), data.frame(c(1:4)))
- 
+
 
 
 ##————————————————————————————————————————————————————————————————————————————
@@ -351,10 +351,10 @@ amova(samples = HD.pops, distances = as.dist(haplotype.distances), distances = a
 # lithuania.center <- centroid(as.matrix(MD[MD$Pop == "Lithuania", c("Lon", "Lat")]))
 # kamtchatka.center <- centroid(as.matrix(MD[MD$Pop == "Kamtchatka", c("Lon", "Lat")]))
 # alaska.center <- centroid(as.matrix(MD[MD$Pop == "Alaska", c("Lon", "Lat")]))
-# 
+#
 # ## Pop sizes
 # table(droplevels(MD$Pop[!MD$Is.Outgroup])) # for now 10 populations
-# 
+#
 # ## Nexus
 # cp.alignment.nca <- cp.alignment.final[!MD$Is.Outgroup]
 # names(cp.alignment.nca) <- paste0("DIPcom", MD$Lab.ID, ".", MD$Pop)[!MD$Is.Outgroup]
@@ -380,7 +380,7 @@ HD.out <- rbind(HD.sub, manual.outgroup)
 haplotype.distances.out <- ht_distance_matrix(HD.out)
 dimnames(haplotype.distances.out) <- list(HD.out$Short.Haplotype, HD.out$Short.Haplotype) # dimnames are passed on as labels to derivated classes
 
-## Make a haplotype abundance matrix based on dropping all other (non abundance and small pop) columns from HD 
+## Make a haplotype abundance matrix based on dropping all other (non abundance and small pop) columns from HD
 pop.matrix <- as.matrix(HD[, !(names(HD) %in% c("SNP", "SSR1", "SSR2", "SSR3", "Haplotype", "Total.Count", "Short.Haplotype", "Slovenia", "St.Petersburg", "Moscow", "Ural", "Siberia.west.n", "Siberia.west.s", "Haplotype.Vector"))]) # "Slovenia", "St.Petersburg", "Moscow", "Ural", "Siberia.west.n", "Siberia.west.s"
 # rownames(pop.matrix) <- HD$Short.Haplotype # unnecessary, but crucial
 
@@ -421,7 +421,7 @@ HD.clustered <- cbind(HD, Clusters)
 # par(.pardefault)
 # ## tree groups
 # cutree(upgma.clust.ord, 3)
-# 
+#
 # # plot with phyloseq
 # upgma.phylo <- as.phylo(upgma.clust)
 # upgma.phyloseq <- phyloseq(otu_table(pop.matrix, taxa_are_rows = T), upgma.phylo)
@@ -450,7 +450,7 @@ plot_tree(haplotype.phylo, color = "samples", size = "abundance", label.tips = "
 #### II. Unrooted tree for populations
 
 ## Nei's D_A 1983, (eqn 7) in Takezaki and Nei (1996)
-Neis.Data <- MD[!MD$Is.Outgroup, c(Pop = "Pop", # 
+Neis.Data <- MD[!MD$Is.Outgroup, c(Pop = "Pop", #
                     "SSR1",
                     "SSR2",
                     "SSR3")] # genet.dist expects A data frame containing population of origin as the first column and multi-locus genotypes in following columns
@@ -559,9 +559,9 @@ plot(ht.net,
 # #### II. Plot the network based on narrower (landscape) populations
 # landscape.pop.matrix <- as.matrix(HDL[, !(names(HDL) %in% c("SNP", "SSR1", "SSR2", "SSR3", "Haplotype", "Total.Count", "Short.Haplotype", "Haplotype.Vector"))])
 # c.landscape <- colorRampPalette(c("blue", "green", "yellow", "orange", "red", "purple"))(ncol(landscape.pop.matrix))
-# 
+#
 # # pop.colors <- c(ByF = "#0000FF", Den = "red", Har = "#003FBF", Lit = "#00BF3F", Sib = "orange", Slo = "#00FF00", ThF = "#007F7F")
-# 
+#
 # plot(ht.net,
 #      labels = T,
 #      threshold = c(1,2), # no alternative mutation links but smallest distance, 0 otherwise c(1,2)
